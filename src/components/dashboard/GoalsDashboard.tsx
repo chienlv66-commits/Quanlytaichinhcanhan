@@ -183,7 +183,7 @@ function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void,
     e.preventDefault();
     const newGoal: Partial<Goal> = {
       Goal_Name: name,
-      Goal_Type: type,
+      Goal_Type: category,
       Target_Amount: Number(targetAmount),
       Current_Amount: Number(currentAmount),
       Allocated_Percentage: 0,
