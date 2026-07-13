@@ -1,20 +1,24 @@
 "use client";
 
-import React, { useEffect, useMemo } from 'react';
-import { useFinanceStore } from '@/stores/financeStore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useFinanceStore, Transaction, Goal } from '@/stores/financeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { ArrowDownIcon, ArrowUpIcon, Activity } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, Activity, Edit2, X, RefreshCw } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function PnLDashboard() {
-  const { transactions, fetchPnL, isLoading, error } = useFinanceStore();
+  const { transactions, fetchPnL, goals, fetchGoals, updateTransaction, deleteTransaction, saveGoals, error } = useFinanceStore();
+
+  const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys: string[]} | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [showReallocate, setShowReallocate] = useState(false);
 
   useEffect(() => {
     fetchPnL();
-  }, [fetchPnL]);
+    fetchGoals();
+  }, [fetchPnL, fetchGoals]);
 
-  // Tính toán P&L theo thuật ngữ Tài chính cá nhân
-  const { pnl, pnlSummary } = useMemo(() => {
+  const { pnl, pnlSummary, budgetSummary } = useMemo(() => {
     const pnl = transactions.reduce((acc, tx) => {
       const amt = Number(tx.amount);
       
@@ -53,112 +57,285 @@ export default function PnLDashboard() {
     const totalIncome = pnl.revenue;
     const totalNeeds = Math.abs(pnl.needs_groceries + pnl.needs_utilities + pnl.needs_edu + pnl.needs_other);
     const totalWants = Math.abs(pnl.wants_dining + pnl.wants_shopping + pnl.wants_entertainment + pnl.wants_other);
-    const savingsAndInvestments = totalIncome - totalNeeds - totalWants + pnl.investments;
+    
+    // Ngân sách từ Goals
+    const budgetNeeds = goals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetWants = goals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetSavings = goals.filter(g => g.category === 'Savings').reduce((sum, g) => sum + g.currentAmount, 0);
+    const totalBudget = budgetNeeds + budgetWants + budgetSavings;
 
-    const pnlSummary = { totalIncome, totalNeeds, totalWants, savingsAndInvestments };
-    return { pnl, pnlSummary };
-  }, [transactions]);
+    const pnlSummary = { totalIncome, totalNeeds, totalWants };
+    const budgetSummary = { budgetNeeds, budgetWants, budgetSavings, totalBudget };
+    
+    return { pnl, pnlSummary, budgetSummary };
+  }, [transactions, goals]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
   };
 
   const pieData = [
-    { name: 'Thiết yếu (Needs)', value: pnlSummary.totalNeeds, color: '#3b82f6' },
-    { name: 'Linh hoạt (Wants)', value: pnlSummary.totalWants, color: '#f59e0b' },
-    { name: 'Tích lũy (Savings)', value: pnlSummary.savingsAndInvestments > 0 ? pnlSummary.savingsAndInvestments : 0, color: '#10b981' }
+    { name: 'Thiết yếu (Needs)', value: budgetSummary.budgetNeeds, color: '#3b82f6' },
+    { name: 'Linh hoạt (Wants)', value: budgetSummary.budgetWants, color: '#f59e0b' },
+    { name: 'Tích lũy (Savings)', value: budgetSummary.budgetSavings, color: '#10b981' }
   ];
 
+  // Tính tỷ lệ thực tế
+  const actualRatioNeeds = budgetSummary.totalBudget > 0 ? (budgetSummary.budgetNeeds / budgetSummary.totalBudget) * 100 : 0;
+  const actualRatioWants = budgetSummary.totalBudget > 0 ? (budgetSummary.budgetWants / budgetSummary.totalBudget) * 100 : 0;
+  const actualRatioSavings = budgetSummary.totalBudget > 0 ? (budgetSummary.budgetSavings / budgetSummary.totalBudget) * 100 : 0;
+
+  const handleDeleteTx = async (id: string) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) {
+      await deleteTransaction(id);
+    }
+  };
+
+  const revenueKeys = ['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì', 'Tổng doanh thu (Gross Revenue)'];
+  const needsKeys = ['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)'];
+  const wantsKeys = ['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)'];
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold tracking-tight">Báo cáo Dòng Tiền (50/30/20)</h2>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-2xl font-bold tracking-tight">Báo cáo Dòng Tiền (50/30/20)</h2>
+        <button 
+          onClick={() => setShowReallocate(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors"
+        >
+          <RefreshCw size={18} /> Điều chỉnh Ngân sách
+        </button>
+      </div>
       
       {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">Lỗi: {error}</div>}
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard 
-          title="Tổng Thu Nhập" 
-          value={formatCurrency(pnlSummary.totalIncome)} 
-          icon={<ArrowUpIcon className="h-4 w-4 text-green-500" />} 
-        />
-        <MetricCard 
-          title="Chi phí Thiết yếu (Needs)" 
-          value={formatCurrency(pnlSummary.totalNeeds)} 
-          subtitle={`${pnlSummary.totalIncome > 0 ? Math.round(pnlSummary.totalNeeds / pnlSummary.totalIncome * 100) : 0}% thu nhập`}
-          icon={<Activity className="h-4 w-4 text-blue-500" />} 
-        />
-        <MetricCard 
-          title="Chi phí Linh hoạt (Wants)" 
-          value={formatCurrency(pnlSummary.totalWants)} 
-          subtitle={`${pnlSummary.totalIncome > 0 ? Math.round(pnlSummary.totalWants / pnlSummary.totalIncome * 100) : 0}% thu nhập`}
-          icon={<Activity className="h-4 w-4 text-orange-500" />} 
-        />
-        <MetricCard 
-          title="Tích lũy & Đầu tư" 
-          value={formatCurrency(pnlSummary.savingsAndInvestments)} 
-          subtitle={`${pnlSummary.totalIncome > 0 ? Math.round(pnlSummary.savingsAndInvestments / pnlSummary.totalIncome * 100) : 0}% thu nhập`}
-          icon={<ArrowDownIcon className="h-4 w-4 text-emerald-500" />} 
-          highlight={pnlSummary.savingsAndInvestments > 0}
-        />
+        <div onClick={() => setShowTxDetails({ title: 'Chi tiết Thu nhập', categoryKeys: revenueKeys })} className="cursor-pointer">
+          <MetricCard 
+            title="Tổng Thu Nhập" 
+            value={formatCurrency(pnlSummary.totalIncome)} 
+            icon={<ArrowUpIcon className="h-4 w-4 text-green-500" />} 
+          />
+        </div>
+        
+        <div onClick={() => setShowTxDetails({ title: 'Chi tiết Thiết yếu', categoryKeys: needsKeys })} className="cursor-pointer">
+          <BudgetCard 
+            title="Thiết yếu (Needs)" 
+            budget={budgetSummary.budgetNeeds} 
+            spent={pnlSummary.totalNeeds}
+            icon={<Activity className="h-4 w-4 text-blue-500" />}
+            colorClass="bg-blue-500"
+          />
+        </div>
+
+        <div onClick={() => setShowTxDetails({ title: 'Chi tiết Linh hoạt', categoryKeys: wantsKeys })} className="cursor-pointer">
+          <BudgetCard 
+            title="Linh hoạt (Wants)" 
+            budget={budgetSummary.budgetWants} 
+            spent={pnlSummary.totalWants}
+            icon={<Activity className="h-4 w-4 text-orange-500" />}
+            colorClass="bg-orange-500"
+          />
+        </div>
+
+        <div className="cursor-pointer">
+          <BudgetCard 
+            title="Tích lũy & Đầu tư" 
+            budget={budgetSummary.budgetSavings} 
+            spent={0} // Tích lũy không có "thực chi" trừ khi mua tài sản, nhưng để đơn giản ta hiển thị số dư quỹ
+            icon={<ArrowDownIcon className="h-4 w-4 text-emerald-500" />}
+            colorClass="bg-emerald-500"
+            isSavings
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="col-span-1">
-          <CardHeader><CardTitle>Cơ cấu Chi tiêu</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+        <Card className="col-span-1 shadow-sm">
+          <CardHeader><CardTitle>Cơ cấu Ngân sách (Budget)</CardTitle></CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 space-y-2 text-sm border-t pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Thiết yếu (Mục tiêu 50%)</span>
+                <span className={`font-bold ${Math.abs(actualRatioNeeds - 50) > 5 ? 'text-red-500' : 'text-green-500'}`}>{actualRatioNeeds.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Linh hoạt (Mục tiêu 30%)</span>
+                <span className={`font-bold ${Math.abs(actualRatioWants - 30) > 5 ? 'text-red-500' : 'text-green-500'}`}>{actualRatioWants.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Tích lũy (Mục tiêu 20%)</span>
+                <span className={`font-bold ${Math.abs(actualRatioSavings - 20) > 5 ? 'text-red-500' : 'text-green-500'}`}>{actualRatioSavings.toFixed(1)}%</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       
         <div className="col-span-2 grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle>Chi tiết Thiết yếu</CardTitle></CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <div className="flex justify-between"><span className="text-gray-500">Đi chợ & Siêu thị</span><span>{formatCurrency(Math.abs(pnl.needs_groceries))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Điện, Nước, Internet</span><span>{formatCurrency(Math.abs(pnl.needs_utilities))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Giáo dục & Học phí</span><span>{formatCurrency(Math.abs(pnl.needs_edu))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Khác</span><span>{formatCurrency(Math.abs(pnl.needs_other))}</span></div>
-              <div className="flex justify-between py-1 border-t font-medium"><span className="text-gray-800">Tổng Needs</span><span>{formatCurrency(pnlSummary.totalNeeds)}</span></div>
+          <Card className="shadow-sm">
+            <CardHeader><CardTitle>Đã chi Thiết yếu</CardTitle></CardHeader>
+            <CardContent className="text-sm space-y-3">
+              <div className="flex justify-between"><span className="text-gray-500">Đi chợ & Siêu thị</span><span className="font-medium">{formatCurrency(Math.abs(pnl.needs_groceries))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Điện, Nước, Internet</span><span className="font-medium">{formatCurrency(Math.abs(pnl.needs_utilities))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Giáo dục & Học phí</span><span className="font-medium">{formatCurrency(Math.abs(pnl.needs_edu))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Khác</span><span className="font-medium">{formatCurrency(Math.abs(pnl.needs_other))}</span></div>
+              <div className="flex justify-between py-2 border-t font-bold text-base mt-2"><span className="text-gray-800">Tổng Đã chi</span><span className="text-blue-600">{formatCurrency(pnlSummary.totalNeeds)}</span></div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader><CardTitle>Chi tiết Linh hoạt</CardTitle></CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <div className="flex justify-between"><span className="text-gray-500">Ăn ngoài & Cafe</span><span>{formatCurrency(Math.abs(pnl.wants_dining))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Mua sắm cá nhân</span><span>{formatCurrency(Math.abs(pnl.wants_shopping))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Giải trí & Du lịch</span><span>{formatCurrency(Math.abs(pnl.wants_entertainment))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Khác</span><span>{formatCurrency(Math.abs(pnl.wants_other))}</span></div>
-              <div className="flex justify-between py-1 border-t font-medium"><span className="text-gray-800">Tổng Wants</span><span>{formatCurrency(pnlSummary.totalWants)}</span></div>
+          <Card className="shadow-sm">
+            <CardHeader><CardTitle>Đã chi Linh hoạt</CardTitle></CardHeader>
+            <CardContent className="text-sm space-y-3">
+              <div className="flex justify-between"><span className="text-gray-500">Ăn ngoài & Cafe</span><span className="font-medium">{formatCurrency(Math.abs(pnl.wants_dining))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Mua sắm cá nhân</span><span className="font-medium">{formatCurrency(Math.abs(pnl.wants_shopping))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Giải trí & Du lịch</span><span className="font-medium">{formatCurrency(Math.abs(pnl.wants_entertainment))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Khác</span><span className="font-medium">{formatCurrency(Math.abs(pnl.wants_other))}</span></div>
+              <div className="flex justify-between py-2 border-t font-bold text-base mt-2"><span className="text-gray-800">Tổng Đã chi</span><span className="text-orange-600">{formatCurrency(pnlSummary.totalWants)}</span></div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <Card className="mt-8">
+      <Card className="shadow-sm">
         <CardHeader><CardTitle>Giao dịch gần đây</CardTitle></CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
             <div className="text-gray-500 text-sm">Chưa có giao dịch nào được ghi nhận.</div>
           ) : (
-            <div className="space-y-4">
-              {transactions.slice().reverse().slice(0, 10).map((tx) => (
-                <div key={tx.id} className="flex justify-between items-center pb-2 border-b last:border-0">
+            <div className="space-y-3">
+              {transactions.slice().reverse().slice(0, 15).map((tx) => (
+                <div key={tx.id} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-all group">
                   <div>
-                    <div className="font-medium text-gray-800">{tx.description}</div>
+                    <div className="font-semibold text-gray-800">{tx.description}</div>
+                    <div className="text-xs text-gray-500 mt-1">{tx.category} • {new Date(tx.timestamp).toLocaleString('vi-VN')}</div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className={`font-bold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {Number(tx.amount) > 0 ? '+' : ''}{formatCurrency(Number(tx.amount))}
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                      <button onClick={() => setEditingTx(tx)} className="text-gray-400 hover:text-blue-600"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDeleteTx(tx.id)} className="text-gray-400 hover:text-red-600"><X size={16} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modals */}
+      {showTxDetails && (
+        <TransactionDetailsModal 
+          title={showTxDetails.title} 
+          transactions={transactions.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))}
+          onClose={() => setShowTxDetails(null)} 
+        />
+      )}
+
+      {editingTx && (
+        <TransactionEditModal 
+          transaction={editingTx} 
+          onSave={async (updates) => {
+            await updateTransaction(editingTx.id, updates);
+            setEditingTx(null);
+          }}
+          onClose={() => setEditingTx(null)} 
+        />
+      )}
+
+      {showReallocate && (
+        <ReallocateModal goals={goals} saveGoals={saveGoals} onClose={() => setShowReallocate(false)} />
+      )}
+    </div>
+  );
+}
+
+// --- Sub Components ---
+
+function MetricCard({ title, value, icon }: { title: string, value: string, icon: React.ReactNode }) {
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-gray-900">{value}</div>
+        <p className="text-xs text-blue-500 mt-2 font-medium cursor-pointer">Bấm để xem chi tiết →</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BudgetCard({ title, budget, spent, icon, colorClass, isSavings = false }: { title: string, budget: number, spent: number, icon: React.ReactNode, colorClass: string, isSavings?: boolean }) {
+  const remaining = budget - spent;
+  const progress = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+  
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+
+  return (
+    <Card className="hover:shadow-md transition-shadow relative overflow-hidden">
+      <div className={`absolute top-0 left-0 w-full h-1 ${colorClass} opacity-50`}></div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-bold text-gray-700">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-gray-900 mb-1">{formatCurrency(budget)}</div>
+        {!isSavings ? (
+          <>
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2 mt-3">
+              <div className={`${colorClass} h-1.5 rounded-full`} style={{ width: `${progress}%` }}></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Đã chi: <strong>{formatCurrency(spent)}</strong></span>
+              <span>Còn lại: <strong className={remaining < 0 ? 'text-red-500' : ''}>{formatCurrency(remaining)}</strong></span>
+            </div>
+            <p className="text-xs text-blue-500 mt-2 font-medium cursor-pointer">Bấm để xem chi tiết chi tiêu →</p>
+          </>
+        ) : (
+          <p className="text-xs text-gray-500 mt-2">Tổng số dư trong các quỹ tích lũy</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TransactionDetailsModal({ title, transactions, onClose }: { title: string, transactions: Transaction[], onClose: () => void }) {
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl bg-white max-h-[80vh] flex flex-col">
+        <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
+          <CardTitle>{title}</CardTitle>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-800"><X size={20} /></button>
+        </CardHeader>
+        <CardContent className="overflow-y-auto p-4 flex-1">
+          {transactions.length === 0 ? <p className="text-gray-500 text-center py-8">Không có giao dịch nào.</p> : (
+            <div className="space-y-3">
+              {transactions.slice().reverse().map(tx => (
+                <div key={tx.id} className="flex justify-between items-center border-b pb-2 last:border-0">
+                  <div>
+                    <div className="font-medium">{tx.description}</div>
                     <div className="text-xs text-gray-500">{tx.category} • {new Date(tx.timestamp).toLocaleString('vi-VN')}</div>
                   </div>
-                  <div className={`font-bold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`font-bold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-gray-800'}`}>
                     {Number(tx.amount) > 0 ? '+' : ''}{formatCurrency(Number(tx.amount))}
                   </div>
                 </div>
@@ -171,17 +348,99 @@ export default function PnLDashboard() {
   );
 }
 
-function MetricCard({ title, value, subtitle, icon, highlight }: { title: string, value: string, subtitle?: string, icon: React.ReactNode, highlight?: boolean }) {
+function TransactionEditModal({ transaction, onSave, onClose }: { transaction: Transaction, onSave: (u: Partial<Transaction>) => void, onClose: () => void }) {
+  const [desc, setDesc] = useState(transaction.description);
+  const [amount, setAmount] = useState(Math.abs(transaction.amount).toString());
+  const [cat, setCat] = useState(transaction.category);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalAmount = transaction.amount > 0 ? Number(amount) : -Number(amount);
+    onSave({ description: desc, amount: finalAmount, category: cat });
+  };
+
   return (
-    <Card className={highlight ? 'bg-emerald-50 border-emerald-200' : ''}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className={`text-2xl font-bold ${highlight ? 'text-emerald-700' : ''}`}>{value}</div>
-        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-      </CardContent>
-    </Card>
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-white">
+        <CardHeader className="flex flex-row justify-between items-center border-b pb-3">
+          <CardTitle>Sửa Giao Dịch</CardTitle>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-800"><X size={20} /></button>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Mô tả</label>
+              <input type="text" className="w-full p-2 border rounded" value={desc} onChange={e => setDesc(e.target.value)} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Số tiền</label>
+              <input type="number" className="w-full p-2 border rounded" value={amount} onChange={e => setAmount(e.target.value)} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Danh mục</label>
+              <input type="text" className="w-full p-2 border rounded bg-gray-50" value={cat} onChange={e => setCat(e.target.value)} />
+            </div>
+            <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold">Lưu thay đổi</button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ReallocateModal({ goals, saveGoals, onClose }: { goals: Goal[], saveGoals: (g: Goal[]) => void, onClose: () => void }) {
+  const [fromId, setFromId] = useState('');
+  const [toId, setToId] = useState('');
+  const [amount, setAmount] = useState('');
+
+  const handleTransfer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fromId || !toId || fromId === toId || !amount) return;
+
+    const amt = Number(amount);
+    const newGoals = goals.map(g => {
+      if (g.id === fromId) return { ...g, currentAmount: g.currentAmount - amt };
+      if (g.id === toId) return { ...g, currentAmount: g.currentAmount + amt };
+      return g;
+    });
+
+    await saveGoals(newGoals);
+    onClose();
+  };
+
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-white">
+        <CardHeader className="flex flex-row justify-between items-center border-b pb-3">
+          <CardTitle>Điều chỉnh Phân bổ (Chuyển tiền)</CardTitle>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-800"><X size={20} /></button>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form onSubmit={handleTransfer} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Lấy từ Quỹ:</label>
+              <select className="w-full p-2 border rounded" value={fromId} onChange={e => setFromId(e.target.value)} required>
+                <option value="">-- Chọn quỹ nguồn --</option>
+                {goals.map(g => <option key={g.id} value={g.id}>{g.name} (Dư: {formatCurrency(g.currentAmount)})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Chuyển sang Quỹ:</label>
+              <select className="w-full p-2 border rounded" value={toId} onChange={e => setToId(e.target.value)} required>
+                <option value="">-- Chọn quỹ đích --</option>
+                {goals.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Số tiền chuyển (VNĐ)</label>
+              <input type="number" className="w-full p-2 border rounded" value={amount} onChange={e => setAmount(e.target.value)} required />
+            </div>
+            <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Chuyển ngay</button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

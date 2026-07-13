@@ -62,6 +62,10 @@ function doPost(e) {
         return handleSaveInvestments(data.data);
       case 'approve_staging':
         return handleApproveStaging(data.transactionId, data.updates);
+      case 'update_transaction':
+        return handleUpdateTransaction(data.transactionId, data.updates);
+      case 'delete_transaction':
+        return handleDeleteTransaction(data.transactionId);
       default:
         return createJsonResponse({ status: 'error', message: 'Unknown action' });
     }
@@ -192,6 +196,42 @@ function handleApproveStaging(transactionId, updates) {
     }
   }
   return createJsonResponse({ status: 'error', message: 'Transaction not found in Staging' });
+}
+
+// ---- TRANSACTION MANAGEMENT ----
+
+function handleUpdateTransaction(transactionId, updates) {
+  const sheet = getOrCreateSheet(PNL_SHEET_NAME, ['ID', 'Timestamp', 'Type', 'Amount', 'Category', 'Description', 'Source']);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idIdx = headers.indexOf('ID');
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx] === transactionId) {
+      if (updates.type) sheet.getRange(i + 1, headers.indexOf('Type') + 1).setValue(updates.type);
+      if (updates.amount !== undefined) sheet.getRange(i + 1, headers.indexOf('Amount') + 1).setValue(updates.amount);
+      if (updates.category) sheet.getRange(i + 1, headers.indexOf('Category') + 1).setValue(updates.category);
+      if (updates.description) sheet.getRange(i + 1, headers.indexOf('Description') + 1).setValue(updates.description);
+      if (updates.timestamp) sheet.getRange(i + 1, headers.indexOf('Timestamp') + 1).setValue(updates.timestamp);
+      return createJsonResponse({ status: 'success', message: 'Transaction updated' });
+    }
+  }
+  return createJsonResponse({ status: 'error', message: 'Transaction not found' });
+}
+
+function handleDeleteTransaction(transactionId) {
+  const sheet = getOrCreateSheet(PNL_SHEET_NAME, ['ID', 'Timestamp', 'Type', 'Amount', 'Category', 'Description', 'Source']);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idIdx = headers.indexOf('ID');
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx] === transactionId) {
+      sheet.deleteRow(i + 1);
+      return createJsonResponse({ status: 'success', message: 'Transaction deleted' });
+    }
+  }
+  return createJsonResponse({ status: 'error', message: 'Transaction not found' });
 }
 
 // ---- UTILS ----

@@ -91,6 +91,8 @@ interface FinanceState {
   saveInvestments: (investments: Investment[]) => Promise<void>;
   approveStaging: (transactionId: string, updates: Partial<Transaction>) => Promise<void>;
   addManualTransaction: (tx: Omit<Transaction, 'id' | 'timestamp'>) => Promise<void>;
+  updateTransaction: (transactionId: string, updates: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -341,6 +343,55 @@ export const useFinanceStore = create<FinanceState>()(
           });
         } catch (err: any) {
           console.error("Lỗi addManualTransaction:", err.message);
+        }
+      },
+      
+      updateTransaction: async (transactionId, updates) => {
+        const { gasUrl, secureToken } = get();
+        if (!gasUrl) return;
+
+        // Optimistic update
+        set((state) => ({
+          transactions: state.transactions.map(t => t.id === transactionId ? { ...t, ...updates } : t)
+        }));
+
+        try {
+          await fetch(gasUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'update_transaction',
+              secureToken,
+              transactionId,
+              updates
+            }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+          });
+        } catch (err: any) {
+          console.error("Lỗi updateTransaction:", err.message);
+        }
+      },
+
+      deleteTransaction: async (transactionId) => {
+        const { gasUrl, secureToken } = get();
+        if (!gasUrl) return;
+
+        // Optimistic update
+        set((state) => ({
+          transactions: state.transactions.filter(t => t.id !== transactionId)
+        }));
+
+        try {
+          await fetch(gasUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'delete_transaction',
+              secureToken,
+              transactionId
+            }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+          });
+        } catch (err: any) {
+          console.error("Lỗi deleteTransaction:", err.message);
         }
       }
     }),
