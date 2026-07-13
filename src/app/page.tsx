@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import PnLDashboard from '@/components/dashboard/PnLDashboard';
 import SwipeApproval from '@/components/staging/SwipeApproval';
 import GoalsDashboard from '@/components/dashboard/GoalsDashboard';
+import AccountsDashboard from '@/components/dashboard/AccountsDashboard';
 import NLPTransactionInput from '@/components/input/NLPTransactionInput';
 import ManualTransactionModal from '@/components/input/ManualTransactionModal';
 import LoginScreen from '@/components/auth/LoginScreen';
@@ -13,9 +14,9 @@ import { useFinanceStore } from '@/stores/financeStore';
 import { Settings, LayoutDashboard, Layers, Home, Plus, LogOut, TrendingUp } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'staging' | 'goals' | 'investments'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'staging' | 'goals' | 'investments' | 'accounts'>('dashboard');
   const [showManualModal, setShowManualModal] = useState(false);
-  const { gasUrl, setGasUrl, userRole, setUserRole, updateExchangeRate } = useFinanceStore();
+  const { gasUrl, setGasUrl, currentUser, logout } = useFinanceStore();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempUrl, setTempUrl] = useState('');
   const [isHydrated, setIsHydrated] = useState(false);
@@ -26,12 +27,13 @@ export default function App() {
     setTempUrl(gasUrl || '');
   }, [gasUrl]);
 
-  // Cập nhật tỷ giá khi load trang nếu là Admin
+  // Fetch initial data when user logs in
   React.useEffect(() => {
-    if (userRole === 'admin') {
-      updateExchangeRate();
+    if (currentUser) {
+      useFinanceStore.getState().fetchAccounts();
+      useFinanceStore.getState().fetchTransactions();
     }
-  }, [userRole, updateExchangeRate]);
+  }, [currentUser]);
 
   if (!isHydrated) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Đang tải...</div>;
@@ -86,11 +88,11 @@ export default function App() {
     );
   }
 
-  if (!userRole && !isSettingsOpen) {
+  if (!currentUser && !isSettingsOpen) {
     return <LoginScreen onOpenSettings={() => setIsSettingsOpen(true)} />;
   }
 
-  if (userRole === 'child') {
+  if (currentUser?.Role === 'VIEWER') {
     return <YouthDashboard />;
   }
 
@@ -103,17 +105,18 @@ export default function App() {
           Quản lý Tài chính
         </div>
         <div className="flex gap-8">
-          <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label="Báo cáo Lãi/Lỗ" />
+          <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label="Lãi/Lỗ" />
+          <NavItem active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} icon={<Layers />} label="Tài khoản" />
           <NavItem active={activeTab === 'staging'} onClick={() => setActiveTab('staging')} icon={<Layers />} label="Hàng chờ duyệt" />
-          <NavItem active={activeTab === 'goals'} onClick={() => setActiveTab('goals')} icon={<Home />} label="Mục tiêu & Quỹ" />
+          <NavItem active={activeTab === 'goals'} onClick={() => setActiveTab('goals')} icon={<Home />} label="Mục tiêu" />
           <NavItem active={activeTab === 'investments'} onClick={() => setActiveTab('investments')} icon={<TrendingUp />} label="Đầu tư" />
         </div>
         <div className="flex gap-4">
           <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-2 p-2 text-gray-500 hover:text-gray-900 font-medium" title="Cài đặt">
             <Settings size={20} /> <span className="hidden md:inline">Cài đặt</span>
           </button>
-          <button onClick={() => setUserRole(null)} className="flex items-center gap-2 p-2 text-red-500 hover:text-red-700 font-medium" title="Đăng xuất">
-            <LogOut size={20} /> <span className="hidden md:inline">Thoát</span>
+          <button onClick={() => logout()} className="flex items-center gap-2 p-2 text-red-500 hover:text-red-700 font-medium" title="Đăng xuất">
+            <LogOut size={20} /> <span className="hidden md:inline">Thoát ({currentUser?.Full_Name})</span>
           </button>
         </div>
       </nav>
@@ -135,6 +138,7 @@ export default function App() {
         </div>
 
         {activeTab === 'dashboard' && <PnLDashboard />}
+        {activeTab === 'accounts' && <AccountsDashboard />}
         {activeTab === 'staging' && <SwipeApproval />}
         {activeTab === 'goals' && <GoalsDashboard />}
         {activeTab === 'investments' && <InvestmentDashboard />}
