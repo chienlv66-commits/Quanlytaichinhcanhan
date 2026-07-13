@@ -84,7 +84,10 @@ function doPost(e) {
 
 function handleLogin(username, password) {
   const users = getSheetData('Users');
-  const user = users.find(u => (u.Username || u.User_ID) === username && u.Password === password);
+  const user = users.find(u => 
+    String(u.Username || u.User_ID).trim() === String(username).trim() && 
+    String(u.Password).trim() === String(password).trim()
+  );
   
   if (user) {
     // Remove password from response
