@@ -47,7 +47,7 @@ export default function IncomeAllocationModal({
 
         const needsGoals = goals.filter(g => g.category === 'Needs');
         const wantsGoals = goals.filter(g => g.category === 'Wants');
-        const savingsGoals = goals.filter(g => !g.category || g.category === 'Savings').sort((a, b) => a.priority - b.priority);
+        const savingsGoals = goals.filter(g => !g.category || g.category === 'Savings').sort((a, b) => (a.priority || 1) - (b.priority || 1));
 
         // Phân bổ Needs (Chia đều nếu có nhiều quỹ Needs)
         if (needsGoals.length > 0) {
@@ -173,7 +173,7 @@ export default function IncomeAllocationModal({
     const goal = goals.find(g => g.id === a.goalId);
     if (autoAllocateSavings && goal && (!goal.category || goal.category === 'Savings')) {
       // Logic dồn tiền dư vào quỹ tích luỹ ưu tiên cao nhất
-      const savingsGoals = goals.filter(g => !g.category || g.category === 'Savings').sort((x, y) => x.priority - y.priority);
+      const savingsGoals = goals.filter(g => !g.category || g.category === 'Savings').sort((x, y) => (x.priority || 1) - (y.priority || 1));
       const topPrioritySavings = savingsGoals.length > 0 ? savingsGoals[0] : null;
       if (topPrioritySavings && goal.id === topPrioritySavings.id) {
         return {
@@ -203,9 +203,35 @@ export default function IncomeAllocationModal({
     setIsSubmitting(true);
     for (const alloc of displayAllocations) {
       if (alloc.checked && alloc.amount > 0) {
-        await updateGoalAmount(alloc.goalId, alloc.amount);
+        // Create GOAL_ALLOCATION transaction
+        await useFinanceStore.getState().createTransaction({
+          Transaction_Date: new Date().toISOString(),
+          Transaction_Type: 'GOAL_ALLOCATION',
+          Amount_Original: alloc.amount,
+          Amount_VND: alloc.amount,
+          Currency: 'VND',
+          Exchange_Rate: 1,
+          Goal_From: '',
+          Goal_To: alloc.goalId,
+          Description: `Phân bổ thu nhập: ${incomeCategory || 'Khác'}`,
+          Owner_User_ID: useFinanceStore.getState().currentUser?.User_ID || '',
+          Privacy_Tag: 'FAMILY',
+          Status: 'POSTED',
+          Category_ID: 'Ngân sách',
+          Account_From: '',
+          Account_To: ''
+        });
+
+        const targetGoal = goals.find(g => g.id === alloc.goalId);
+        if (targetGoal) {
+          await useFinanceStore.getState().updateGoal(alloc.goalId, { Current_Amount: targetGoal.currentAmount + alloc.amount });
+        }
       }
     }
+    
+    // Refresh goals
+    await useFinanceStore.getState().fetchGoals();
+
     setIsSubmitting(false);
     onClose();
   };
@@ -230,7 +256,7 @@ export default function IncomeAllocationModal({
           </CardTitle>
           <p className="text-sm text-gray-500">
             {isSalary 
-              ? "Hệ thống tự động trích 50% vào quỹ Thiết Yếu, 30% quỹ Linh Hoạt, và 20% vào quỹ Tích Lũy dựa trên ưu tiên."
+              ? "Hệ thống tự động gợi ý trích 50% vào quỹ Thiết Yếu, 30% quỹ Linh Hoạt, và 20% vào quỹ Tích Lũy dựa trên ưu tiên. Bạn có thể tự do điều chỉnh hoặc bỏ chọn."
               : "Đây là khoản thu ngoài lương. Bạn có thể tích chọn quỹ và tự nhập số tiền muốn phân bổ."}
           </p>
         </CardHeader>
@@ -251,8 +277,8 @@ export default function IncomeAllocationModal({
                 const order = { 'Needs': 1, 'Wants': 2, 'Savings': 3 };
                 const catA = a.category || 'Savings';
                 const catB = b.category || 'Savings';
-                if (order[catA] !== order[catB]) return order[catA] - order[catB];
-                return a.priority - b.priority;
+                if (order[catA as keyof typeof order] !== order[catB as keyof typeof order]) return order[catA as keyof typeof order] - order[catB as keyof typeof order];
+                return (a.priority || 1) - (b.priority || 1);
               }).map(goal => {
                 const alloc = displayAllocations.find(a => a.goalId === goal.id);
                 if (!alloc) return null;
@@ -351,18 +377,15 @@ export default function IncomeAllocationModal({
               </div>
 
               <div className="flex gap-4">
-                <button 
-                  onClick={onClose}
-                  className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300"
-                >
+                <button onClick={onClose} className="flex-1 py-3 text-gray-700 bg-gray-100 rounded-lg font-bold hover:bg-gray-200">
                   Bỏ qua
                 </button>
                 <button 
                   onClick={handleSubmit} 
                   disabled={isSubmitting || totalAllocated > incomeAmount}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:bg-gray-400"
+                  className="flex-1 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Đang lưu...' : 'Xác nhận Phân bổ'}
+                  {isSubmitting ? 'Đang lưu...' : 'Lưu Phân bổ'}
                 </button>
               </div>
             </div>

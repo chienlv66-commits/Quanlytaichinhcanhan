@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Plus, Target, Home, Car, Briefcase, AlertCircle, Edit2, X } from 'lucide-react';
 
 export default function GoalsDashboard() {
-  const { goals, fetchGoals, saveGoals } = useFinanceStore();
+  const { goals, fetchGoals, createGoal, updateGoal, deleteGoal } = useFinanceStore();
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   
@@ -14,19 +14,21 @@ export default function GoalsDashboard() {
     fetchGoals();
   }, [fetchGoals]);
 
-  const handleAddGoal = async (newGoal: Goal) => {
+  const handleAddGoal = async (newGoal: Partial<Goal>) => {
     if (editingGoal) {
-      await saveGoals(goals.map(g => g.id === newGoal.id ? newGoal : g));
+      await updateGoal(editingGoal.Goal_ID || editingGoal.id, newGoal);
     } else {
-      await saveGoals([...goals, newGoal]);
+      await createGoal(newGoal);
     }
+    await fetchGoals();
     setShowAddGoal(false);
     setEditingGoal(null);
   };
 
   const handleDeleteGoal = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa quỹ này?')) {
-      await saveGoals(goals.filter(g => g.id !== id));
+      await deleteGoal(id);
+      await fetchGoals();
     }
   };
 
@@ -82,7 +84,7 @@ export default function GoalsDashboard() {
                       <button onClick={() => handleEditGoal(goal)} className="text-gray-400 hover:text-blue-600 transition-colors">
                         <Edit2 size={16} />
                       </button>
-                      <button onClick={() => handleDeleteGoal(goal.id)} className="text-gray-400 hover:text-red-600 transition-colors">
+                      <button onClick={() => handleDeleteGoal(goal.Goal_ID || goal.id)} className="text-gray-400 hover:text-red-600 transition-colors">
                         <X size={16} />
                       </button>
                     </div>
@@ -146,7 +148,7 @@ export default function GoalsDashboard() {
   );
 }
 
-function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void, onSave: (g: Goal) => void, initialData?: Goal | null }) {
+function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void, onSave: (g: Partial<Goal>) => void, initialData?: Goal | null }) {
   const [name, setName] = useState(initialData?.name || '');
   const [type, setType] = useState<Goal['type']>(initialData?.type || 'General');
   const [category, setCategory] = useState<Goal['category']>(initialData?.category || 'Savings');
@@ -179,21 +181,13 @@ function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newGoal: Goal = {
-      id: initialData?.id || Date.now().toString(),
-      name,
-      type,
-      targetAmount: Number(targetAmount),
-      currentAmount: Number(currentAmount),
-      allocatedPercentage: 0,
-      priority: Number(priority),
-      category: category,
-      loanPhases: isLoan ? loanPhases.map(p => ({
-        id: p.id,
-        name: p.name,
-        rate: Number(p.rate),
-        durationMonths: Number(p.duration)
-      })) : []
+    const newGoal: Partial<Goal> = {
+      Goal_Name: name,
+      Goal_Type: type,
+      Target_Amount: Number(targetAmount),
+      Current_Amount: Number(currentAmount),
+      Allocated_Percentage: 0,
+      Privacy_Tag: 'FAMILY'
     };
     onSave(newGoal);
   };

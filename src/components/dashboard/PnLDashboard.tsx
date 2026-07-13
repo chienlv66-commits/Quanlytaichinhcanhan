@@ -398,13 +398,39 @@ function ReallocateModal({ goals, saveGoals, onClose }: { goals: Goal[], saveGoa
     if (!fromId || !toId || fromId === toId || !amount) return;
 
     const amt = Number(amount);
-    const newGoals = goals.map(g => {
-      if (g.id === fromId) return { ...g, currentAmount: g.currentAmount - amt };
-      if (g.id === toId) return { ...g, currentAmount: g.currentAmount + amt };
-      return g;
+    
+    // Create GOAL_ALLOCATION transaction
+    await useFinanceStore.getState().createTransaction({
+      Transaction_Date: new Date().toISOString(),
+      Transaction_Type: 'GOAL_ALLOCATION',
+      Amount_Original: amt,
+      Amount_VND: amt,
+      Currency: 'VND',
+      Exchange_Rate: 1,
+      Goal_From: fromId,
+      Goal_To: toId,
+      Description: `Điều chuyển ngân sách`,
+      Owner_User_ID: useFinanceStore.getState().currentUser?.User_ID || '',
+      Privacy_Tag: 'FAMILY',
+      Status: 'POSTED',
+      Category_ID: 'Ngân sách',
+      Account_From: '',
+      Account_To: ''
     });
 
-    await saveGoals(newGoals);
+    const fromGoal = goals.find(g => g.id === fromId);
+    const toGoal = goals.find(g => g.id === toId);
+    
+    if (fromGoal) {
+      await useFinanceStore.getState().updateGoal(fromId, { Current_Amount: fromGoal.currentAmount - amt });
+    }
+    if (toGoal) {
+      await useFinanceStore.getState().updateGoal(toId, { Current_Amount: toGoal.currentAmount + amt });
+    }
+
+    // Refresh goals
+    await useFinanceStore.getState().fetchGoals();
+
     onClose();
   };
 

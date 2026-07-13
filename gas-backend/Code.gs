@@ -27,7 +27,11 @@ function doGet(e) {
       return createJsonResponse({ success: true, data: filtered });
     }
 
-    if (action === 'getGoals') return createJsonResponse({ success: true, data: getSheetData('Goals') });
+    if (action === 'getGoals') {
+      const goals = getSheetData('Goals');
+      const filtered = goals.filter(g => canView(g, userId, role));
+      return createJsonResponse({ success: true, data: filtered });
+    }
     if (action === 'getInvestments') return createJsonResponse({ success: true, data: getSheetData('Investments') });
     
     return createJsonResponse({ success: false, message: 'Invalid action' });
@@ -68,8 +72,12 @@ function doPost(e) {
         return handleUpdateTransaction(data.transactionId, data.updates);
       case 'delete_transaction':
         return handleDeleteTransaction(data.transactionId);
-      case 'save_goals':
-        return handleSaveGoals(data);
+      case 'create_goal':
+        return handleCreateGoal(data);
+      case 'update_goal':
+        return handleUpdateGoal(data.goalId, data.updates);
+      case 'delete_goal':
+        return handleDeleteGoal(data.goalId);
       case 'save_investments':
         return handleSaveInvestments(data);
       default:
@@ -162,7 +170,9 @@ function handleCreateTransaction(txData) {
     txData.Drive_URL || '',
     txData.Idempotency_Key || Utilities.getUuid(),
     now,
-    now
+    now,
+    txData.Goal_From || '',
+    txData.Goal_To || ''
   ]);
 
   return createJsonResponse({ success: true, data: { id }, message: 'Transaction created' });
@@ -250,11 +260,102 @@ function createJsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function handleSaveGoals(goalsArray) {
-  const sheet = getOrCreateSheet('Goals', ['Goal_ID', 'Goal_Name', 'TargetAmount', 'CurrentAmount', 'Type', 'AllocatedPercentage']);
-  return createJsonResponse({ success: true, message: 'Goals saved (Mocked for Phase 1)' });
+function handleCreateGoal(goalData) {
+  const sheet = getOrCreateSheet('Goals', ['Goal_ID', 'Goal_Name', 'Target_Amount', 'Current_Amount', 'Goal_Type', 'Allocated_Percentage', 'Owner_User_ID', 'Privacy_Tag']);
+  const id = Utilities.getUuid();
+  sheet.appendRow([
+    id,
+    goalData.Goal_Name || '',
+    goalData.Target_Amount || 0,
+    goalData.Current_Amount || 0,
+    goalData.Goal_Type || 'Savings',
+    goalData.Allocated_Percentage || 0,
+    goalData.Owner_User_ID || '',
+    goalData.Privacy_Tag || 'FAMILY'
+  ]);
+  return createJsonResponse({ success: true, data: { id }, message: 'Goal created' });
+}
+
+function handleUpdateGoal(goalId, updates) {
+  const sheet = getOrCreateSheet('Goals', []);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idIdx = headers.indexOf('Goal_ID');
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx] === goalId) {
+      Object.keys(updates).forEach(key => {
+        const colIdx = headers.indexOf(key);
+        if (colIdx >= 0) {
+          sheet.getRange(i + 1, colIdx + 1).setValue(updates[key]);
+        }
+      });
+      return createJsonResponse({ success: true, message: 'Goal updated' });
+    }
+  }
+  return createJsonResponse({ success: false, message: 'Goal not found' });
+}
+
+function handleDeleteGoal(goalId) {
+  const sheet = getOrCreateSheet('Goals', []);
+  const data = sheet.getDataRange().getValues();
+  const idIdx = data[0].indexOf('Goal_ID');
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx] === goalId) {
+      sheet.deleteRow(i + 1);
+      return createJsonResponse({ success: true, message: 'Goal deleted' });
+    }
+  }
+  return createJsonResponse({ success: false, message: 'Goal not found' });
 }
 function handleSaveInvestments(investmentsArray) {
   const sheet = getOrCreateSheet('Investments', ['ID', 'Name', 'Type', 'ExpectedYield']);
   return createJsonResponse({ success: true, message: 'Investments saved (Mocked)' });
+}
+
+function autoSetupDatabase() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. Users
+  let usersSheet = ss.getSheetByName('Users');
+  if (!usersSheet) {
+    usersSheet = ss.insertSheet('Users');
+    usersSheet.appendRow(['User_ID', 'Username', 'Password', 'Role']);
+    usersSheet.appendRow(['user_1', 'admin', '123456', 'ADMIN']);
+    usersSheet.appendRow(['user_2', 'spouse', '123456', 'SPOUSE']);
+  }
+  
+  // 2. Accounts
+  let accSheet = ss.getSheetByName('Accounts');
+  if (!accSheet) {
+    accSheet = ss.insertSheet('Accounts');
+    accSheet.appendRow(['Account_ID', 'Account_Name', 'Account_Type', 'Currency', 'Exchange_Rate', 'Current_Balance', 'Owner_User_ID', 'Privacy_Tag', 'Is_Included_In_Net_Worth']);
+    accSheet.appendRow(['acc_1', 'Tiền mặt', 'CASH', 'VND', 1, 5000000, 'user_1', 'FAMILY', true]);
+    accSheet.appendRow(['acc_2', 'Vietcombank của Vợ', 'BANK', 'VND', 1, 15000000, 'user_2', 'PERSONAL', true]);
+  }
+
+  // 3. Transactions
+  let txSheet = ss.getSheetByName('Transactions');
+  if (!txSheet) {
+    txSheet = ss.insertSheet('Transactions');
+    txSheet.appendRow(['Transaction_ID', 'Transaction_Date', 'Transaction_Type', 'Amount_Original', 'Currency', 'Exchange_Rate', 'Amount_VND', 'Category_ID', 'Account_From', 'Account_To', 'Description', 'Privacy_Tag', 'Owner_User_ID', 'Created_By', 'Created_At', 'Updated_At', 'Goal_From', 'Goal_To']);
+  } else {
+    // Phase 2 Upgrade: ensure Goal_From and Goal_To exist
+    const headers = txSheet.getDataRange().getValues()[0];
+    if (headers.indexOf('Goal_From') === -1) {
+      txSheet.getRange(1, headers.length + 1).setValue('Goal_From');
+      txSheet.getRange(1, headers.length + 2).setValue('Goal_To');
+    }
+  }
+  
+  // 4. Goals (Phase 2)
+  let goalsSheet = ss.getSheetByName('Goals');
+  if (!goalsSheet) {
+    goalsSheet = ss.insertSheet('Goals');
+    goalsSheet.appendRow(['Goal_ID', 'Goal_Name', 'Target_Amount', 'Current_Amount', 'Goal_Type', 'Allocated_Percentage', 'Owner_User_ID', 'Privacy_Tag']);
+    goalsSheet.appendRow(['goal_1', 'Chi tiêu thiết yếu', 0, 0, 'Needs', 50, 'user_1', 'FAMILY']);
+    goalsSheet.appendRow(['goal_2', 'Chi tiêu linh hoạt', 0, 0, 'Wants', 30, 'user_1', 'FAMILY']);
+    goalsSheet.appendRow(['goal_3', 'Tiết kiệm & Đầu tư', 0, 0, 'Savings', 20, 'user_1', 'FAMILY']);
+  }
 }

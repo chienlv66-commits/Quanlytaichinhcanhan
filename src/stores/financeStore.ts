@@ -36,6 +36,8 @@ export interface Transaction {
   Exchange_Rate: number;
   Amount_VND: number;
   Goal_ID?: string;
+  Goal_From?: string;
+  Goal_To?: string;
   Investment_ID?: string;
   Debt_ID?: string;
   Description: string;
@@ -56,15 +58,35 @@ export interface Transaction {
   status?: string;
 }
 
-export interface StagingTransaction extends Omit<Transaction, 'status' | 'Status'> {
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-}
-
 // Giữ lại các models cũ chưa xử lý trong Phase 1 (để tránh lỗi React code)
 export interface LoanPhase { id: string; name: string; rate: number; durationMonths: number; }
 export interface InvestmentCashflow { id: string; date: string; amount: number; type: 'IN' | 'OUT'; description?: string; }
+export interface Goal {
+  Goal_ID: string;
+  Goal_Name: string;
+  Target_Amount: number;
+  Current_Amount: number;
+  Goal_Type: string;
+  Allocated_Percentage: number;
+  Owner_User_ID: string;
+  Privacy_Tag: string;
+
+  // Legacy
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  type?: string;
+  category?: string;
+  deadline?: string;
+  priority?: number;
+  loanPhases?: any[];
+}
+
 export interface Investment { id: string; name: string; type: 'Short' | 'Mid' | 'Long'; expectedYield: number; currentAmount: number; cashflows: InvestmentCashflow[]; updatedAt?: string; }
-export interface Goal { id: string; name: string; targetAmount: number; currentAmount: number; type: 'House' | 'Car' | 'Business' | 'Emergency' | 'General'; allocatedPercentage: number; priority: number; category?: 'Needs' | 'Wants' | 'Savings'; loanPhases?: LoanPhase[]; loanInterestRate?: number; loanTermMonths?: number; updatedAt?: string; }
+export interface StagingTransaction extends Omit<Transaction, 'status' | 'Status'> {
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
 
 interface FinanceState {
   // Cấu hình
@@ -94,9 +116,13 @@ interface FinanceState {
   updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 
+  fetchGoals: () => Promise<void>;
+  createGoal: (g: Partial<Goal>) => Promise<boolean>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
+
   // Legacy mappings for old dashboard code (will be refactored gradually)
   fetchPnL: () => Promise<void>;
-  fetchGoals: () => Promise<void>;
   saveGoals: (g: any) => Promise<void>;
   fetchInvestments: () => Promise<void>;
   saveInvestments: (i: any) => Promise<void>;
@@ -259,8 +285,89 @@ export const useFinanceStore = create<FinanceState>()(
 
       // Legacy fallback (Will remove in Phase 4)
       fetchPnL: async () => { get().fetchTransactions(); },
-      fetchGoals: async () => { /* Mock for now */ },
-      saveGoals: async () => { /* Mock for now */ },
+      
+      fetchGoals: async () => {
+        const { gasUrl, currentUser } = get();
+        if (!gasUrl || !currentUser) return;
+        set({ isLoading: true, error: null });
+        try {
+          const res = await fetch(`${gasUrl}?action=getGoals&userId=${currentUser.User_ID}&role=${currentUser.Role}`);
+          const data = await res.json();
+          if (data.success) {
+            // Map legacy fields
+            const goalsData = data.data.map((g: any) => ({
+              ...g,
+              id: g.Goal_ID,
+              name: g.Goal_Name,
+              currentAmount: Number(g.Current_Amount),
+              targetAmount: Number(g.Target_Amount)
+            }));
+            set({ goals: goalsData, isLoading: false });
+          } else {
+            set({ error: data.message, isLoading: false });
+          }
+        } catch (err: any) {
+          set({ error: err.message, isLoading: false });
+        }
+      },
+
+      createGoal: async (g) => {
+        const tempId = `temp_${Date.now()}`;
+        const newGoal = {
+          Goal_ID: tempId,
+          id: tempId,
+          Goal_Name: g.Goal_Name || '',
+          name: g.Goal_Name || '',
+          Current_Amount: g.Current_Amount || 0,
+          currentAmount: g.Current_Amount || 0,
+          Target_Amount: g.Target_Amount || 0,
+          targetAmount: g.Target_Amount || 0,
+          Goal_Type: g.Goal_Type || 'Savings',
+          Allocated_Percentage: g.Allocated_Percentage || 0,
+          Owner_User_ID: g.Owner_User_ID || '',
+          Privacy_Tag: g.Privacy_Tag || 'FAMILY'
+        } as Goal;
+
+        set(state => ({ goals: [...state.goals, newGoal] }));
+
+        const { gasUrl, secureToken } = get();
+        try {
+          const res = await fetch(gasUrl, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'create_goal', secureToken, data: newGoal })
+          });
+          const data = await res.json();
+          if (data.success) {
+            set(state => ({
+              goals: state.goals.map(x => x.Goal_ID === tempId ? { ...x, Goal_ID: data.data.id, id: data.data.id } : x)
+            }));
+            return true;
+          }
+        } catch (err) {}
+        return false;
+      },
+
+      updateGoal: async (id, updates) => {
+        set(state => ({
+          goals: state.goals.map(g => g.Goal_ID === id ? { ...g, ...updates, currentAmount: updates.Current_Amount ?? g.currentAmount } : g)
+        }));
+        const { gasUrl, secureToken } = get();
+        await fetch(gasUrl, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'update_goal', secureToken, goalId: id, updates })
+        });
+      },
+
+      deleteGoal: async (id) => {
+        set(state => ({ goals: state.goals.filter(g => g.Goal_ID !== id) }));
+        const { gasUrl, secureToken } = get();
+        await fetch(gasUrl, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'delete_goal', secureToken, goalId: id })
+        });
+      },
+
+      saveGoals: async () => { /* Mock */ },
       fetchInvestments: async () => { /* Mock */ },
       saveInvestments: async () => { /* Mock */ },
       childBudgetWeekly: 500000,
