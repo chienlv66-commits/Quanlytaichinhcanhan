@@ -146,33 +146,24 @@ function handleCreateTransaction(txData) {
   // For now, we just record the transaction.
   
   sheet.appendRow([
-    id,
-    txData.Transaction_Date || now,
-    txData.Transaction_Type || 'EXPENSE',
-    txData.Status || 'POSTED',
-    txData.Account_From || '',
-    txData.Account_To || '',
-    txData.Category_ID || '',
-    txData.Amount_Original || 0,
-    txData.Currency || 'VND',
-    txData.Exchange_Rate || 1,
-    txData.Amount_VND || 0,
-    txData.Goal_ID || '',
-    txData.Investment_ID || '',
-    txData.Debt_ID || '',
-    txData.Recurring_ID || '',
-    txData.Description || '',
-    txData.Merchant || '',
-    txData.Privacy_Tag || 'FAMILY',
-    txData.Owner_User_ID || '',
-    txData.Created_By || '',
-    txData.Source || 'Web App',
-    txData.Drive_URL || '',
-    txData.Idempotency_Key || Utilities.getUuid(),
-    now,
-    now,
-    txData.Goal_From || '',
-    txData.Goal_To || ''
+    id, // Transaction_ID
+    txData.Transaction_Date || now, // Transaction_Date
+    txData.Transaction_Type || 'EXPENSE', // Transaction_Type
+    txData.Amount_Original || 0, // Amount_Original
+    txData.Currency || 'VND', // Currency
+    txData.Exchange_Rate || 1, // Exchange_Rate
+    txData.Amount_VND || 0, // Amount_VND
+    txData.Category_ID || '', // Category_ID
+    txData.Account_From || '', // Account_From
+    txData.Account_To || '', // Account_To
+    txData.Description || '', // Description
+    txData.Privacy_Tag || 'FAMILY', // Privacy_Tag
+    txData.Owner_User_ID || '', // Owner_User_ID
+    txData.Created_By || '', // Created_By
+    now, // Created_At
+    now, // Updated_At
+    txData.Goal_From || '', // Goal_From
+    txData.Goal_To || '' // Goal_To
   ]);
 
   return createJsonResponse({ success: true, data: { id }, message: 'Transaction created' });
