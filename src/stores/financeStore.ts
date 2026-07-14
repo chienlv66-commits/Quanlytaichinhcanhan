@@ -203,7 +203,16 @@ export const useFinanceStore = create<FinanceState>()(
           const res = await fetch(`${gasUrl}?action=getTransactions&userId=${currentUser.User_ID}&role=${currentUser.Role}&_t=${Date.now()}`);
           const data = await res.json();
           if (data.success) {
-            set({ transactions: data.data, isLoading: false });
+            const mapped = data.data.map((tx: any) => ({
+              ...tx,
+              id: tx.Transaction_ID,
+              amount: Number(tx.Amount_VND || tx.Amount_Original),
+              category: tx.Category_ID,
+              type: tx.Transaction_Type === 'INCOME' ? 'Revenue' : 'Expense', // legacy mapping
+              description: tx.Description,
+              timestamp: tx.Transaction_Date
+            }));
+            set({ transactions: mapped, isLoading: false });
           } else {
             set({ error: data.message, isLoading: false });
           }
@@ -223,7 +232,14 @@ export const useFinanceStore = create<FinanceState>()(
           Status: 'POSTED',
           Owner_User_ID: currentUser.User_ID,
           Created_By: currentUser.User_ID,
-          Created_At: new Date().toISOString()
+          Created_At: new Date().toISOString(),
+          // Legacy mappings for optimistic UI
+          id: tempId,
+          amount: Number(tx.Amount_VND || tx.Amount_Original || tx.amount || 0),
+          category: tx.Category_ID || tx.category || '',
+          type: tx.Transaction_Type === 'INCOME' || tx.type === 'Revenue' ? 'Revenue' : 'Expense',
+          description: tx.Description || tx.description || '',
+          timestamp: tx.Transaction_Date || tx.timestamp || new Date().toISOString()
         } as Transaction;
 
         set(state => ({ transactions: [newTx, ...state.transactions] }));
