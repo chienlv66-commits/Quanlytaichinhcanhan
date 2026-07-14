@@ -283,7 +283,7 @@ export const useFinanceStore = create<FinanceState>()(
         const { gasUrl, secureToken } = get();
         await fetch(gasUrl, {
           method: 'POST',
-          body: JSON.stringify({ action: 'update_transaction', secureToken, transactionId: id, updates })
+          body: JSON.stringify({ action: 'update_transaction', secureToken, data: { transactionId: id, updates } })
         });
       },
 
@@ -295,7 +295,7 @@ export const useFinanceStore = create<FinanceState>()(
         const { gasUrl, secureToken } = get();
         await fetch(gasUrl, {
           method: 'POST',
-          body: JSON.stringify({ action: 'delete_transaction', secureToken, transactionId: id })
+          body: JSON.stringify({ action: 'delete_transaction', secureToken, data: { transactionId: id } })
         });
       },
 
@@ -372,7 +372,7 @@ export const useFinanceStore = create<FinanceState>()(
         const { gasUrl, secureToken } = get();
         await fetch(gasUrl, {
           method: 'POST',
-          body: JSON.stringify({ action: 'update_goal', secureToken, goalId: id, updates })
+          body: JSON.stringify({ action: 'update_goal', secureToken, data: { goalId: id, updates } })
         });
       },
 
@@ -381,7 +381,7 @@ export const useFinanceStore = create<FinanceState>()(
         const { gasUrl, secureToken } = get();
         await fetch(gasUrl, {
           method: 'POST',
-          body: JSON.stringify({ action: 'delete_goal', secureToken, goalId: id })
+          body: JSON.stringify({ action: 'delete_goal', secureToken, data: { goalId: id } })
         });
       },
 
