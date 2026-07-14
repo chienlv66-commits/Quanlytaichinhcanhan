@@ -183,7 +183,7 @@ export const useFinanceStore = create<FinanceState>()(
         if (!gasUrl || !currentUser) return;
         set({ isLoading: true });
         try {
-          const res = await fetch(`${gasUrl}?action=getAccounts&userId=${currentUser.User_ID}&role=${currentUser.Role}`);
+          const res = await fetch(`${gasUrl}?action=getAccounts&userId=${currentUser.User_ID}&role=${currentUser.Role}&_t=${Date.now()}`);
           const data = await res.json();
           if (data.success) {
             set({ accounts: data.data, isLoading: false });
@@ -200,7 +200,7 @@ export const useFinanceStore = create<FinanceState>()(
         if (!gasUrl || !currentUser) return;
         set({ isLoading: true });
         try {
-          const res = await fetch(`${gasUrl}?action=getTransactions&userId=${currentUser.User_ID}&role=${currentUser.Role}`);
+          const res = await fetch(`${gasUrl}?action=getTransactions&userId=${currentUser.User_ID}&role=${currentUser.Role}&_t=${Date.now()}`);
           const data = await res.json();
           if (data.success) {
             set({ transactions: data.data, isLoading: false });
@@ -291,7 +291,7 @@ export const useFinanceStore = create<FinanceState>()(
         if (!gasUrl || !currentUser) return;
         set({ isLoading: true, error: null });
         try {
-          const res = await fetch(`${gasUrl}?action=getGoals&userId=${currentUser.User_ID}&role=${currentUser.Role}`);
+          const res = await fetch(`${gasUrl}?action=getGoals&userId=${currentUser.User_ID}&role=${currentUser.Role}&_t=${Date.now()}`);
           const data = await res.json();
           if (data.success) {
             // Map legacy fields
@@ -300,7 +300,9 @@ export const useFinanceStore = create<FinanceState>()(
               id: g.Goal_ID,
               name: g.Goal_Name,
               currentAmount: Number(g.Current_Amount),
-              targetAmount: Number(g.Target_Amount)
+              targetAmount: Number(g.Target_Amount),
+              category: g.Goal_Type,
+              type: 'General'
             }));
             set({ goals: goalsData, isLoading: false });
           } else {
