@@ -8,12 +8,12 @@ import IncomeAllocationModal from './IncomeAllocationModal';
 
 const CATEGORIES: Record<string, string[]> = {
   'INCOME': ['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì'],
-  'EXPENSE': ['Thiết yếu (Ăn uống, Thuê nhà)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân', 'Giáo dục', 'Sức khỏe', 'Khác'],
+  'EXPENSE': ['Thiết yếu (Ăn uống, Thuê nhà)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân', 'Giáo dục', 'Sức khỏe', 'Khác', 'Mỹ phẩm / Làm đẹp', 'Thời trang / Phụ kiện', 'Giao lưu / Bạn bè', 'Sở thích cá nhân'],
   'TRANSFER': ['Chuyển tiền nội bộ']
 };
 
 export default function ManualTransactionModal({ onClose }: { onClose: () => void }) {
-  const { createTransaction, accounts } = useFinanceStore();
+  const { createTransaction, accounts, goals, updateGoal } = useFinanceStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [type, setType] = useState<'INCOME' | 'EXPENSE' | 'TRANSFER'>('EXPENSE');
@@ -23,6 +23,7 @@ export default function ManualTransactionModal({ onClose }: { onClose: () => voi
   
   const [accountFrom, setAccountFrom] = useState(accounts.length > 0 ? accounts[0].Account_ID : '');
   const [accountTo, setAccountTo] = useState('');
+  const [goalId, setGoalId] = useState('');
   const [privacyTag, setPrivacyTag] = useState<'FAMILY' | 'PERSONAL' | 'BUSINESS'>('FAMILY');
 
   const [showAllocationModal, setShowAllocationModal] = useState(false);
@@ -44,8 +45,20 @@ export default function ManualTransactionModal({ onClose }: { onClose: () => voi
       Description: description,
       Account_From: accountFrom,
       Account_To: type === 'TRANSFER' ? accountTo : '',
+      Goal_From: type === 'EXPENSE' ? goalId : '',
+      Goal_To: type === 'INCOME' ? goalId : '',
       Privacy_Tag: privacyTag
     });
+    
+    if (success && goalId) {
+      const targetGoal = goals.find(g => g.id === goalId || g.Goal_ID === goalId);
+      if (targetGoal) {
+        const amountDiff = type === 'INCOME' ? finalAmount : (type === 'EXPENSE' ? -finalAmount : 0);
+        if (amountDiff !== 0) {
+          await updateGoal(targetGoal.id, { Current_Amount: targetGoal.currentAmount + amountDiff });
+        }
+      }
+    }
     
     setIsSubmitting(false);
 
@@ -131,6 +144,20 @@ export default function ManualTransactionModal({ onClose }: { onClose: () => voi
                 <label className="block text-sm font-medium mb-1">Nhóm (Hạng mục)</label>
                 <select className="w-full p-2 border rounded" value={category} onChange={e => setCategory(e.target.value)}>
                   {CATEGORIES[type].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+
+            {type !== 'TRANSFER' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {type === 'INCOME' ? 'Cộng vào Quỹ (Tùy chọn)' : 'Trừ vào Quỹ (Tùy chọn)'}
+                </label>
+                <select className="w-full p-2 border rounded" value={goalId} onChange={e => setGoalId(e.target.value)}>
+                  <option value="">-- Không chọn quỹ --</option>
+                  {goals.map(g => (
+                    <option key={g.id} value={g.id}>{g.name} ({new Intl.NumberFormat('vi-VN').format(g.currentAmount)}đ)</option>
+                  ))}
                 </select>
               </div>
             )}

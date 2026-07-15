@@ -74,12 +74,6 @@ export default function LoginScreen({ onOpenSettings }: { onOpenSettings: () => 
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
-
-          <div className="mt-8 pt-6 border-t text-center text-sm text-gray-500">
-            <p>Dữ liệu mẫu để test Giai đoạn 1:</p>
-            <p>Chồng: admin / 123456</p>
-            <p>Vợ: spouse / 123456</p>
-          </div>
         </div>
       </div>
     </div>

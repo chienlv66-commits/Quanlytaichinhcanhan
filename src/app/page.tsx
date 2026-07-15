@@ -5,16 +5,17 @@ import PnLDashboard from '@/components/dashboard/PnLDashboard';
 import SwipeApproval from '@/components/staging/SwipeApproval';
 import GoalsDashboard from '@/components/dashboard/GoalsDashboard';
 import AccountsDashboard from '@/components/dashboard/AccountsDashboard';
+import PersonalDashboard from '@/components/dashboard/PersonalDashboard';
 import NLPTransactionInput from '@/components/input/NLPTransactionInput';
 import ManualTransactionModal from '@/components/input/ManualTransactionModal';
 import LoginScreen from '@/components/auth/LoginScreen';
 import YouthDashboard from '@/components/dashboard/YouthDashboard';
 import InvestmentDashboard from '@/components/dashboard/InvestmentDashboard';
 import { useFinanceStore } from '@/stores/financeStore';
-import { Settings, LayoutDashboard, Layers, Home, Plus, LogOut, TrendingUp } from 'lucide-react';
+import { Settings, LayoutDashboard, Layers, Home, Plus, LogOut, TrendingUp, User } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'staging' | 'goals' | 'investments' | 'accounts'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'staging' | 'goals' | 'investments' | 'accounts' | 'personal'>('dashboard');
   const [showManualModal, setShowManualModal] = useState(false);
   const { gasUrl, setGasUrl, currentUser, logout } = useFinanceStore();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -107,6 +108,7 @@ export default function App() {
         <div className="flex gap-8">
           <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label="Lãi/Lỗ" />
           <NavItem active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} icon={<Layers />} label="Tài khoản" />
+          <NavItem active={activeTab === 'personal'} onClick={() => setActiveTab('personal')} icon={<User />} label="Cá nhân" />
           <NavItem active={activeTab === 'staging'} onClick={() => setActiveTab('staging')} icon={<Layers />} label="Hàng chờ duyệt" />
           <NavItem active={activeTab === 'goals'} onClick={() => setActiveTab('goals')} icon={<Home />} label="Mục tiêu" />
           <NavItem active={activeTab === 'investments'} onClick={() => setActiveTab('investments')} icon={<TrendingUp />} label="Đầu tư" />
@@ -139,6 +141,7 @@ export default function App() {
 
         {activeTab === 'dashboard' && <PnLDashboard />}
         {activeTab === 'accounts' && <AccountsDashboard />}
+        {activeTab === 'personal' && <PersonalDashboard />}
         {activeTab === 'staging' && <SwipeApproval />}
         {activeTab === 'goals' && <GoalsDashboard />}
         {activeTab === 'investments' && <InvestmentDashboard />}

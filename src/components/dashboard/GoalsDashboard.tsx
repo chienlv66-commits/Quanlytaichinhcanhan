@@ -155,6 +155,9 @@ function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void,
   const [targetAmount, setTargetAmount] = useState(initialData?.targetAmount?.toString() || '');
   const [currentAmount, setCurrentAmount] = useState(initialData?.currentAmount?.toString() || '0');
   const [priority, setPriority] = useState(initialData?.priority?.toString() || '1');
+  const [privacyTag, setPrivacyTag] = useState<'FAMILY'|'PERSONAL'|'BUSINESS'>(
+    (initialData as any)?.Privacy_Tag || 'FAMILY'
+  );
   
   // Thông số vay nâng cao
   const [isLoan, setIsLoan] = useState(!!(initialData?.loanPhases && initialData.loanPhases.length > 0));
@@ -187,7 +190,7 @@ function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void,
       Target_Amount: Number(targetAmount),
       Current_Amount: Number(currentAmount),
       Allocated_Percentage: 0,
-      Privacy_Tag: 'FAMILY'
+      Privacy_Tag: privacyTag
     };
     onSave(newGoal);
   };
@@ -232,6 +235,14 @@ function GoalSetupModal({ onClose, onSave, initialData }: { onClose: () => void,
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Quyền riêng tư</label>
+              <select className="w-full p-2 border rounded" value={privacyTag} onChange={e => setPrivacyTag(e.target.value as any)}>
+                <option value="FAMILY">Gia đình (Chung)</option>
+                <option value="PERSONAL">Cá nhân (Riêng tư)</option>
+              </select>
             </div>
 
             <div>

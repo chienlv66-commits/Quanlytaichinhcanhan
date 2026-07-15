@@ -58,10 +58,11 @@ export default function PnLDashboard() {
     const totalNeeds = Math.abs(pnl.needs_groceries + pnl.needs_utilities + pnl.needs_edu + pnl.needs_other);
     const totalWants = Math.abs(pnl.wants_dining + pnl.wants_shopping + pnl.wants_entertainment + pnl.wants_other);
     
-    // Ngân sách từ Goals
-    const budgetNeeds = goals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
-    const budgetWants = goals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
-    const budgetSavings = goals.filter(g => g.category === 'Savings').reduce((sum, g) => sum + g.currentAmount, 0);
+    // Ngân sách từ Goals (chỉ tính Quỹ Chung)
+    const familyGoals = goals.filter(g => (g as any).Privacy_Tag !== 'PERSONAL');
+    const budgetNeeds = familyGoals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetWants = familyGoals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetSavings = familyGoals.filter(g => g.category === 'Savings').reduce((sum, g) => sum + g.currentAmount, 0);
     const totalBudget = budgetNeeds + budgetWants + budgetSavings;
 
     const pnlSummary = { totalIncome, totalNeeds, totalWants };

@@ -203,21 +203,24 @@ export default function IncomeAllocationModal({
     setIsSubmitting(true);
     for (const alloc of displayAllocations) {
       if (alloc.checked && alloc.amount > 0) {
-        // Create GOAL_ALLOCATION transaction
+        const targetGoal = goals.find(g => g.id === alloc.goalId);
+        const isPersonal = (targetGoal as any)?.Privacy_Tag === 'PERSONAL';
+
+        // Create transaction
         await useFinanceStore.getState().createTransaction({
           Transaction_Date: new Date().toISOString(),
-          Transaction_Type: 'GOAL_ALLOCATION',
+          Transaction_Type: isPersonal ? 'EXPENSE' : 'GOAL_ALLOCATION',
           Amount_Original: alloc.amount,
           Amount_VND: alloc.amount,
           Currency: 'VND',
           Exchange_Rate: 1,
           Goal_From: '',
           Goal_To: alloc.goalId,
-          Description: `Phân bổ thu nhập: ${incomeCategory || 'Khác'}`,
+          Description: `Phân bổ thu nhập: ${incomeCategory || 'Khác'} - ${targetGoal?.name || ''}`,
           Owner_User_ID: useFinanceStore.getState().currentUser?.User_ID || '',
           Privacy_Tag: 'FAMILY',
           Status: 'POSTED',
-          Category_ID: 'Ngân sách',
+          Category_ID: isPersonal ? 'Phân bổ cá nhân' : 'Ngân sách',
           Account_From: '',
           Account_To: ''
         });
