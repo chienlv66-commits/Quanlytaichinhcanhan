@@ -26,17 +26,17 @@ export default function PnLDashboard() {
       if (['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì', 'Tổng doanh thu (Gross Revenue)'].includes(tx.category) || tx.type === 'Revenue') acc.revenue += amt;
       
       // Thiết yếu (COGS)
-      if (['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)'].includes(tx.category)) {
-        if (tx.category.includes('Đi chợ')) acc.needs_groceries += amt;
+      if (['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)', 'Thiết yếu (Ăn uống, Thuê nhà)', 'Giáo dục', 'Sức khỏe'].includes(tx.category)) {
+        if (tx.category.includes('Đi chợ') || tx.category === 'Thiết yếu (Ăn uống, Thuê nhà)') acc.needs_groceries += amt;
         else if (tx.category.includes('Thuê nhà')) acc.needs_utilities += amt;
         else if (tx.category.includes('Giáo dục')) acc.needs_edu += amt;
         else acc.needs_other += amt;
       }
       
       // Linh hoạt (OPEX)
-      if (['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)'].includes(tx.category)) {
+      if (['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)', 'Linh hoạt (Giải trí, Mua sắm)', 'Khác'].includes(tx.category) && !['Giáo dục', 'Sức khỏe', 'Thiết yếu (Ăn uống, Thuê nhà)'].includes(tx.category)) {
         if (tx.category.includes('Ăn ngoài')) acc.wants_dining += amt;
-        else if (tx.category.includes('Mua sắm')) acc.wants_shopping += amt;
+        else if (tx.category.includes('Mua sắm') || tx.category === 'Linh hoạt (Giải trí, Mua sắm)') acc.wants_shopping += amt;
         else if (tx.category.includes('Giải trí')) acc.wants_entertainment += amt;
         else acc.wants_other += amt;
       }
@@ -223,9 +223,25 @@ export default function PnLDashboard() {
                     <div className="text-xs text-gray-500 mt-1">{tx.category} • {new Date(tx.timestamp).toLocaleString('vi-VN')}</div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className={`font-bold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {Number(tx.amount) > 0 ? '+' : ''}{formatCurrency(Number(tx.amount))}
-                    </div>
+                    {(() => {
+                      const rawAmt = Number(tx.amount);
+                      const isIncome = tx.Transaction_Type === 'INCOME' || tx.type === 'Revenue';
+                      const isTransfer = tx.Transaction_Type === 'TRANSFER' || tx.Transaction_Type === 'GOAL_ALLOCATION';
+                      
+                      let colorClass = isIncome ? 'text-green-600' : 'text-red-600';
+                      let sign = isIncome ? '+' : '-';
+                      
+                      if (isTransfer) {
+                        colorClass = 'text-gray-600';
+                        sign = '';
+                      }
+
+                      return (
+                        <div className={`font-bold ${colorClass}`}>
+                          {sign}{formatCurrency(Math.abs(rawAmt))}
+                        </div>
+                      );
+                    })()}
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                       <button onClick={() => setEditingTx(tx)} className="text-gray-400 hover:text-blue-600"><Edit2 size={16} /></button>
                       <button onClick={() => handleDeleteTx(tx.id)} className="text-gray-400 hover:text-red-600"><X size={16} /></button>
