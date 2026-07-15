@@ -198,12 +198,13 @@ function handleDeleteTransaction(transactionId) {
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][idIdx] === transactionId) {
-      // Soft delete: Change Status to VOID
       const statusIdx = headers.indexOf('Status');
       if (statusIdx >= 0) {
          sheet.getRange(i + 1, statusIdx + 1).setValue('VOID');
-         return createJsonResponse({ success: true, message: 'Transaction voided' });
+      } else {
+         sheet.deleteRow(i + 1);
       }
+      return createJsonResponse({ success: true, message: 'Transaction deleted' });
     }
   }
   return createJsonResponse({ success: false, message: 'Transaction not found' });

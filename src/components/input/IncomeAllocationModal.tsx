@@ -225,7 +225,6 @@ export default function IncomeAllocationModal({
           Account_To: ''
         });
 
-        const targetGoal = goals.find(g => g.id === alloc.goalId);
         if (targetGoal) {
           await useFinanceStore.getState().updateGoal(alloc.goalId, { Current_Amount: targetGoal.currentAmount + alloc.amount });
         }
