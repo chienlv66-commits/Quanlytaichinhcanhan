@@ -34,9 +34,9 @@ export default function PnLDashboard() {
       }
       
       // Linh hoạt (OPEX)
-      if (['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)', 'Linh hoạt (Giải trí, Mua sắm)', 'Khác'].includes(tx.category) && !['Giáo dục', 'Sức khỏe', 'Thiết yếu (Ăn uống, Thuê nhà)'].includes(tx.category)) {
+      if (['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân', 'Khác'].includes(tx.category) && !['Giáo dục', 'Sức khỏe', 'Thiết yếu (Ăn uống, Thuê nhà)'].includes(tx.category)) {
         if (tx.category.includes('Ăn ngoài')) acc.wants_dining += amt;
-        else if (tx.category.includes('Mua sắm') || tx.category === 'Linh hoạt (Giải trí, Mua sắm)') acc.wants_shopping += amt;
+        else if (tx.category.includes('Mua sắm') || tx.category === 'Linh hoạt (Giải trí, Mua sắm)' || tx.category === 'Chi tiêu cá nhân') acc.wants_shopping += amt;
         else if (tx.category.includes('Giải trí')) acc.wants_entertainment += amt;
         else acc.wants_other += amt;
       }

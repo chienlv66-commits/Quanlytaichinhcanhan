@@ -8,7 +8,7 @@ import IncomeAllocationModal from './IncomeAllocationModal';
 
 const CATEGORIES: Record<string, string[]> = {
   'INCOME': ['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì'],
-  'EXPENSE': ['Thiết yếu (Ăn uống, Thuê nhà)', 'Linh hoạt (Giải trí, Mua sắm)', 'Giáo dục', 'Sức khỏe', 'Khác'],
+  'EXPENSE': ['Thiết yếu (Ăn uống, Thuê nhà)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân', 'Giáo dục', 'Sức khỏe', 'Khác'],
   'TRANSFER': ['Chuyển tiền nội bộ']
 };
 
