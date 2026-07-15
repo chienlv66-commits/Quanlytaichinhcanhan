@@ -26,7 +26,7 @@ export default function AccountsDashboard() {
   if (isLoading && accounts.length === 0) return <div className="text-center py-10">Đang tải tài khoản...</div>;
   if (error) return <div className="text-red-500 p-4 bg-red-50 rounded-lg">{error}</div>;
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + acc.Current_Balance * acc.Exchange_Rate, 0);
+  const totalBalance = accounts.reduce((sum, acc) => sum + (Number(acc.Current_Balance) || 0) * (Number(acc.Exchange_Rate) || 1), 0);
 
   return (
     <div className="space-y-6">
@@ -51,11 +51,11 @@ export default function AccountsDashboard() {
             <h3 className="font-semibold text-gray-900">{acc.Account_Name}</h3>
             <p className="text-sm text-gray-500 mb-3">{acc.Account_Type}</p>
             <div className="text-xl font-bold">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: acc.Currency }).format(acc.Current_Balance)}
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: acc.Currency || 'VND' }).format(Number(acc.Current_Balance) || 0)}
             </div>
             {acc.Currency !== 'VND' && (
               <div className="text-sm text-gray-400 mt-1">
-                ≈ {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(acc.Current_Balance * acc.Exchange_Rate)}
+                ≈ {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((Number(acc.Current_Balance) || 0) * (Number(acc.Exchange_Rate) || 1))}
               </div>
             )}
           </div>
