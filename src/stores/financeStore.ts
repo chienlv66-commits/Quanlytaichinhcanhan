@@ -203,7 +203,8 @@ export const useFinanceStore = create<FinanceState>()(
           const res = await fetch(`${gasUrl}?action=getTransactions&userId=${currentUser.User_ID}&role=${currentUser.Role}&_t=${Date.now()}`);
           const data = await res.json();
           if (data.success) {
-            const mapped = data.data.map((tx: any) => ({
+            const activeTransactions = data.data.filter((tx: any) => tx.Status !== 'VOID' && tx.Status !== 'REJECTED');
+            const mapped = activeTransactions.map((tx: any) => ({
               ...tx,
               id: tx.Transaction_ID,
               amount: Number(tx.Amount_VND || tx.Amount_Original),
