@@ -268,8 +268,19 @@ export default function PnLDashboard() {
         <TransactionEditModal 
           transaction={editingTx} 
           onSave={async (updates) => {
-            await updateTransaction(editingTx.id, updates);
+            const apiUpdates: any = {};
+            if (updates.description !== undefined) apiUpdates.Description = updates.description;
+            if (updates.amount !== undefined) {
+              apiUpdates.Amount_Original = Math.abs(updates.amount);
+              apiUpdates.Amount_VND = Math.abs(updates.amount);
+            }
+            if (updates.category !== undefined) apiUpdates.Category_ID = updates.category;
+            if (updates.timestamp !== undefined) apiUpdates.Transaction_Date = updates.timestamp;
+
+            await updateTransaction(editingTx.id, apiUpdates);
             setEditingTx(null);
+            // Optionally refetch
+            await useFinanceStore.getState().fetchTransactions();
           }}
           onClose={() => setEditingTx(null)} 
         />
@@ -369,11 +380,25 @@ function TransactionEditModal({ transaction, onSave, onClose }: { transaction: T
   const [desc, setDesc] = useState(transaction.description);
   const [amount, setAmount] = useState(Math.abs(transaction.amount).toString());
   const [cat, setCat] = useState(transaction.category);
+  const [txDate, setTxDate] = useState(() => {
+    if (transaction.timestamp) {
+      const d = new Date(transaction.timestamp);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 16);
+    }
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalAmount = transaction.amount > 0 ? Number(amount) : -Number(amount);
-    onSave({ description: desc, amount: finalAmount, category: cat });
+    let txDateISO = new Date().toISOString();
+    if (txDate) {
+      txDateISO = new Date(txDate).toISOString();
+    }
+    onSave({ description: desc, amount: finalAmount, category: cat, timestamp: txDateISO });
   };
 
   return (
@@ -385,6 +410,10 @@ function TransactionEditModal({ transaction, onSave, onClose }: { transaction: T
         </CardHeader>
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Thời gian giao dịch</label>
+              <input type="datetime-local" className="w-full p-2 border rounded" value={txDate} onChange={e => setTxDate(e.target.value)} required />
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Mô tả</label>
               <input type="text" className="w-full p-2 border rounded" value={desc} onChange={e => setDesc(e.target.value)} required />

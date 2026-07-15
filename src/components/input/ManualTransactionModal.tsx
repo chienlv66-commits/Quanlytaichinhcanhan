@@ -25,6 +25,11 @@ export default function ManualTransactionModal({ onClose, defaultPrivacyTag = 'F
   const [accountTo, setAccountTo] = useState('');
   const [goalId, setGoalId] = useState('');
   const [privacyTag, setPrivacyTag] = useState<'FAMILY' | 'PERSONAL' | 'BUSINESS'>(defaultPrivacyTag);
+  const [transactionDate, setTransactionDate] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
 
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [savedIncomeAmount, setSavedIncomeAmount] = useState(0);
@@ -35,8 +40,15 @@ export default function ManualTransactionModal({ onClose, defaultPrivacyTag = 'F
 
     setIsSubmitting(true);
     let finalAmount = Number(amount);
+    
+    // Convert local datetime to UTC ISO string
+    let txDateISO = new Date().toISOString();
+    if (transactionDate) {
+      txDateISO = new Date(transactionDate).toISOString();
+    }
 
     const success = await createTransaction({
+      Transaction_Date: txDateISO,
       Transaction_Type: type,
       Category_ID: category,
       Amount_Original: finalAmount,
@@ -109,6 +121,10 @@ export default function ManualTransactionModal({ onClose, defaultPrivacyTag = 'F
             </div>
 
             <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">Thời gian giao dịch</label>
+                <input type="datetime-local" className="w-full p-2 border rounded" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} required />
+              </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-1">Số tiền (VND)</label>
                 <input type="number" required placeholder="Ví dụ: 500000" className="w-full p-2 border rounded" value={amount} onChange={e => setAmount(e.target.value)} />

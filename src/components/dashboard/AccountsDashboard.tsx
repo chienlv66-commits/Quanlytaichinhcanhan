@@ -51,7 +51,14 @@ export default function AccountsDashboard() {
             <h3 className="font-semibold text-gray-900">{acc.Account_Name}</h3>
             <p className="text-sm text-gray-500 mb-3">{acc.Account_Type}</p>
             <div className="text-xl font-bold">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: acc.Currency || 'VND' }).format(Number(acc.Current_Balance) || 0)}
+              {(() => {
+                try {
+                  const curr = (acc.Currency?.trim()?.length === 3) ? acc.Currency.trim().toUpperCase() : 'VND';
+                  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: curr }).format(Number(acc.Current_Balance) || 0);
+                } catch(e) {
+                  return `${Number(acc.Current_Balance) || 0} ${acc.Currency}`;
+                }
+              })()}
             </div>
             {acc.Currency !== 'VND' && (
               <div className="text-sm text-gray-400 mt-1">
