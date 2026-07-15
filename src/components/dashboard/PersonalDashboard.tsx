@@ -112,7 +112,7 @@ export default function PersonalDashboard() {
         </CardContent>
       </Card>
 
-      {showManualModal && <ManualTransactionModal onClose={() => setShowManualModal(false)} />}
+      {showManualModal && <ManualTransactionModal onClose={() => setShowManualModal(false)} defaultPrivacyTag="PERSONAL" />}
     </div>
   );
 }

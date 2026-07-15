@@ -220,7 +220,7 @@ export default function IncomeAllocationModal({
           Owner_User_ID: useFinanceStore.getState().currentUser?.User_ID || '',
           Privacy_Tag: 'FAMILY',
           Status: 'POSTED',
-          Category_ID: isPersonal ? 'Phân bổ cá nhân' : 'Ngân sách',
+          Category_ID: isPersonal ? 'Chi tiêu cá nhân' : 'Ngân sách',
           Account_From: '',
           Account_To: ''
         });

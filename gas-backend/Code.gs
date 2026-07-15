@@ -145,26 +145,39 @@ function handleCreateTransaction(txData) {
   // If TRANSFER, handle balances (in Phase 2 we will update Account balances in sheets)
   // For now, we just record the transaction.
   
-  sheet.appendRow([
-    id, // Transaction_ID
-    txData.Transaction_Date || now, // Transaction_Date
-    txData.Transaction_Type || 'EXPENSE', // Transaction_Type
-    txData.Amount_Original || 0, // Amount_Original
-    txData.Currency || 'VND', // Currency
-    txData.Exchange_Rate || 1, // Exchange_Rate
-    txData.Amount_VND || 0, // Amount_VND
-    txData.Category_ID || '', // Category_ID
-    txData.Account_From || '', // Account_From
-    txData.Account_To || '', // Account_To
-    txData.Description || '', // Description
-    txData.Privacy_Tag || 'FAMILY', // Privacy_Tag
-    txData.Owner_User_ID || '', // Owner_User_ID
-    txData.Created_By || '', // Created_By
-    now, // Created_At
-    now, // Updated_At
-    txData.Goal_From || '', // Goal_From
-    txData.Goal_To || '' // Goal_To
-  ]);
+  const headers = sheet.getDataRange().getValues()[0];
+  const rowData = new Array(headers.length).fill('');
+  
+  const mapData = {
+    'Transaction_ID': id,
+    'Transaction_Date': txData.Transaction_Date || now,
+    'Transaction_Type': txData.Transaction_Type || 'EXPENSE',
+    'Amount_Original': txData.Amount_Original || 0,
+    'Currency': txData.Currency || 'VND',
+    'Exchange_Rate': txData.Exchange_Rate || 1,
+    'Amount_VND': txData.Amount_VND || 0,
+    'Category_ID': txData.Category_ID || '',
+    'Account_From': txData.Account_From || '',
+    'Account_To': txData.Account_To || '',
+    'Description': txData.Description || '',
+    'Privacy_Tag': txData.Privacy_Tag || 'FAMILY',
+    'Owner_User_ID': txData.Owner_User_ID || '',
+    'Created_By': txData.Created_By || '',
+    'Created_At': now,
+    'Updated_At': now,
+    'Status': txData.Status || 'POSTED',
+    'Goal_From': txData.Goal_From || '',
+    'Goal_To': txData.Goal_To || ''
+  };
+
+  for (let i = 0; i < headers.length; i++) {
+    const colName = headers[i];
+    if (mapData[colName] !== undefined) {
+      rowData[i] = mapData[colName];
+    }
+  }
+
+  sheet.appendRow(rowData);
 
   return createJsonResponse({ success: true, data: { id }, message: 'Transaction created' });
 }

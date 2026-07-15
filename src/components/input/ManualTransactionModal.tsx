@@ -12,7 +12,7 @@ const CATEGORIES: Record<string, string[]> = {
   'TRANSFER': ['Chuyển tiền nội bộ']
 };
 
-export default function ManualTransactionModal({ onClose }: { onClose: () => void }) {
+export default function ManualTransactionModal({ onClose, defaultPrivacyTag = 'FAMILY' }: { onClose: () => void, defaultPrivacyTag?: 'FAMILY'|'PERSONAL'|'BUSINESS' }) {
   const { createTransaction, accounts, goals, updateGoal } = useFinanceStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,7 +24,7 @@ export default function ManualTransactionModal({ onClose }: { onClose: () => voi
   const [accountFrom, setAccountFrom] = useState(accounts.length > 0 ? accounts[0].Account_ID : '');
   const [accountTo, setAccountTo] = useState('');
   const [goalId, setGoalId] = useState('');
-  const [privacyTag, setPrivacyTag] = useState<'FAMILY' | 'PERSONAL' | 'BUSINESS'>('FAMILY');
+  const [privacyTag, setPrivacyTag] = useState<'FAMILY' | 'PERSONAL' | 'BUSINESS'>(defaultPrivacyTag);
 
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [savedIncomeAmount, setSavedIncomeAmount] = useState(0);
