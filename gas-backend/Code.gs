@@ -66,6 +66,8 @@ function doPost(e) {
     }
 
     switch (action) {
+      case 'create_account':
+        return handleCreateAccount(data);
       case 'create_transaction':
         return handleCreateTransaction(data);
       case 'update_transaction':
@@ -223,6 +225,42 @@ function handleDeleteTransaction(transactionId) {
   return createJsonResponse({ success: false, message: 'Transaction not found' });
 }
 
+
+function handleCreateAccount(accData) {
+  const sheet = getOrCreateSheet('Accounts', [
+    'Account_ID', 'Account_Name', 'Account_Type', 'Owner_User_ID', 'Privacy_Tag', 
+    'Currency', 'Current_Balance', 'Exchange_Rate', 'Is_Included_In_Net_Worth', 'Created_At'
+  ]);
+  
+  const id = accData.Account_ID || Utilities.getUuid();
+  const now = new Date().toISOString();
+  
+  const headers = sheet.getDataRange().getValues()[0];
+  const rowData = new Array(headers.length).fill('');
+  
+  const mapData = {
+    'Account_ID': id,
+    'Account_Name': accData.Account_Name || '',
+    'Account_Type': accData.Account_Type || 'CASH',
+    'Owner_User_ID': accData.Owner_User_ID || '',
+    'Privacy_Tag': accData.Privacy_Tag || 'FAMILY',
+    'Currency': accData.Currency || 'VND',
+    'Current_Balance': accData.Current_Balance || 0,
+    'Exchange_Rate': accData.Exchange_Rate || 1,
+    'Is_Included_In_Net_Worth': accData.Is_Included_In_Net_Worth !== undefined ? accData.Is_Included_In_Net_Worth : true,
+    'Created_At': now
+  };
+
+  for (let i = 0; i < headers.length; i++) {
+    const colName = headers[i];
+    if (mapData[colName] !== undefined) {
+      rowData[i] = mapData[colName];
+    }
+  }
+
+  sheet.appendRow(rowData);
+  return createJsonResponse({ success: true, data: { id }, message: 'Account created' });
+}
 
 // ---- UTILS ----
 

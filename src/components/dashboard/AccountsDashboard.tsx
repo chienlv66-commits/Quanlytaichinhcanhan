@@ -1,9 +1,17 @@
-import React from 'react';
-import { useFinanceStore } from '@/stores/financeStore';
-import { CreditCard, Wallet, Building, PiggyBank, EyeOff } from 'lucide-react';
+import React, { useState } from 'react';
+import { useFinanceStore, Account } from '@/stores/financeStore';
+import { CreditCard, Wallet, Building, PiggyBank, EyeOff, Plus, X } from 'lucide-react';
 
 export default function AccountsDashboard() {
-  const { accounts, isLoading, error } = useFinanceStore();
+  const { accounts, isLoading, error, createAccount, currentUser } = useFinanceStore();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAcc, setNewAcc] = useState<Partial<Account>>({
+    Account_Name: '',
+    Account_Type: 'CASH',
+    Current_Balance: 0,
+    Currency: 'VND',
+    Privacy_Tag: 'FAMILY'
+  });
 
   const getIcon = (type: string) => {
     switch(type) {
@@ -23,6 +31,19 @@ export default function AccountsDashboard() {
     }
   };
 
+  const handleCreate = async () => {
+    if (!newAcc.Account_Name) return alert('Vui lòng nhập tên tài khoản');
+    await createAccount(newAcc);
+    setShowAddModal(false);
+    setNewAcc({
+      Account_Name: '',
+      Account_Type: 'CASH',
+      Current_Balance: 0,
+      Currency: 'VND',
+      Privacy_Tag: 'FAMILY'
+    });
+  };
+
   if (isLoading && accounts.length === 0) return <div className="text-center py-10">Đang tải tài khoản...</div>;
   if (error) return <div className="text-red-500 p-4 bg-red-50 rounded-lg">{error}</div>;
 
@@ -37,6 +58,12 @@ export default function AccountsDashboard() {
             {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalBalance)}
           </div>
         </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+        >
+          <Plus size={20} /> Thêm Tài Khoản
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -74,6 +101,47 @@ export default function AccountsDashboard() {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-bold text-lg">Thêm Tài Khoản Mới</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:bg-gray-100 p-1 rounded-full"><X size={20}/></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Tên tài khoản</label>
+                <input type="text" className="w-full p-2 border rounded" placeholder="VD: Tiền mặt, Thẻ VCB..." value={newAcc.Account_Name} onChange={e => setNewAcc({...newAcc, Account_Name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Loại tài khoản</label>
+                <select className="w-full p-2 border rounded" value={newAcc.Account_Type} onChange={e => setNewAcc({...newAcc, Account_Type: e.target.value})}>
+                  <option value="CASH">Tiền mặt (CASH)</option>
+                  <option value="BANK">Ngân hàng (BANK)</option>
+                  <option value="E-WALLET">Ví điện tử (E-WALLET)</option>
+                  <option value="CREDIT">Thẻ tín dụng (CREDIT)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Số dư ban đầu</label>
+                <input type="number" className="w-full p-2 border rounded" value={newAcc.Current_Balance} onChange={e => setNewAcc({...newAcc, Current_Balance: Number(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Quyền riêng tư</label>
+                <select className="w-full p-2 border rounded" value={newAcc.Privacy_Tag} onChange={e => setNewAcc({...newAcc, Privacy_Tag: e.target.value as any})}>
+                  <option value="FAMILY">Chung (Gia đình)</option>
+                  <option value="PERSONAL">Cá nhân (Chỉ mình bạn xem được)</option>
+                </select>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 flex justify-end gap-2 border-t">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded font-medium text-gray-700 hover:bg-gray-100">Hủy</button>
+              <button onClick={handleCreate} className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">Tạo Tài Khoản</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

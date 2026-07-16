@@ -111,6 +111,7 @@ interface FinanceState {
   setSecureToken: (token: string) => void;
   
   fetchAccounts: () => Promise<void>;
+  createAccount: (acc: Partial<Account>) => Promise<boolean>;
   fetchTransactions: () => Promise<void>;
   createTransaction: (tx: Partial<Transaction>) => Promise<boolean>;
   updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
@@ -192,6 +193,39 @@ export const useFinanceStore = create<FinanceState>()(
           }
         } catch (e: any) {
           set({ error: e.message, isLoading: false });
+        }
+      },
+
+      createAccount: async (acc) => {
+        const { gasUrl, secureToken, currentUser } = get();
+        if (!gasUrl || !currentUser) { set({ error: 'Not logged in' }); return false; }
+
+        const tempId = `temp_${Date.now()}`;
+        const newAcc = {
+          ...acc,
+          Account_ID: tempId,
+          Owner_User_ID: currentUser.User_ID,
+          Created_At: new Date().toISOString()
+        } as Account;
+
+        set(state => ({ accounts: [...state.accounts, newAcc] }));
+
+        try {
+          const res = await fetch(gasUrl, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'create_account', secureToken, data: newAcc })
+          });
+          const data = await res.json();
+          if (data.success) {
+            get().fetchAccounts();
+            return true;
+          } else {
+            set({ error: data.message });
+            return false;
+          }
+        } catch (e: any) {
+          set({ error: e.message });
+          return false;
         }
       },
 
