@@ -298,9 +298,8 @@ export default function IncomeAllocationModal({
                         <input 
                           type="checkbox" 
                           checked={alloc.checked} 
-                          disabled={isAutoSavingsTarget}
                           onChange={() => toggleCheck(goal.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 disabled:opacity-50"
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300"
                         />
                         <div className="font-semibold text-gray-800">
                           {goal.name} 
@@ -332,7 +331,6 @@ export default function IncomeAllocationModal({
                           <label className="block text-xs text-gray-500 mb-1">Số tiền phân bổ (VNĐ)</label>
                           <input 
                             type="number" 
-                            disabled={isAutoSavingsTarget}
                             className={`w-full p-2 border rounded font-semibold ${isUnderpaid ? 'text-red-600 border-red-300 bg-red-50' : 'text-blue-700'} ${isAutoSavingsTarget ? 'bg-gray-100' : ''}`}
                             value={alloc.amount} 
                             onChange={(e) => handleAmountChange(goal.id, Number(e.target.value))} 
