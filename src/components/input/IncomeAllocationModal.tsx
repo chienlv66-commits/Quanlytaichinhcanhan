@@ -52,7 +52,11 @@ export default function IncomeAllocationModal({
 
         const needsGoals = goals.filter(g => g.category === 'Needs' || g.category === 'Thiết yếu');
         const wantsGoals = goals.filter(g => g.category === 'Wants' || g.category === 'Linh hoạt');
-        const savingsGoals = goals.filter(g => !g.category || ['Savings', 'Tích lũy', 'Tích luỹ'].includes(g.category)).sort((a, b) => (a.priority || 1) - (b.priority || 1));
+        const savingsGoals = goals.filter(g => {
+          const isNeeds = g.category === 'Needs' || g.category === 'Thiết yếu';
+          const isWants = g.category === 'Wants' || g.category === 'Linh hoạt';
+          return !isNeeds && !isWants;
+        }).sort((a, b) => (a.priority || 1) - (b.priority || 1));
 
         if (autoAllocateSavings) {
           if (savingsGoals.length > 0) {

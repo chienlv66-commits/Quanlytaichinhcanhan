@@ -13,7 +13,7 @@ export default function PnLDashboard() {
     return transactions.filter(tx => tx.Privacy_Tag !== 'PERSONAL');
   }, [transactions]);
 
-  const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys?: string[], type?: string, goalCategories?: string[]} | null>(null);
+  const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys?: string[], type?: string, isSavingsGoal?: boolean} | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showReallocate, setShowReallocate] = useState(false);
 
@@ -75,7 +75,11 @@ export default function PnLDashboard() {
     const familyGoals = goals.filter(g => (g as any).Privacy_Tag !== 'PERSONAL');
     const remainingNeeds = familyGoals.filter(g => g.category === 'Needs' || g.category === 'Thiết yếu').reduce((sum, g) => sum + g.currentAmount, 0);
     const remainingWants = familyGoals.filter(g => g.category === 'Wants' || g.category === 'Linh hoạt').reduce((sum, g) => sum + g.currentAmount, 0);
-    const budgetSavings = familyGoals.filter(g => g.category === 'Savings' || g.category === 'Tích lũy' || g.category === 'Tích luỹ').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetSavings = familyGoals.filter(g => {
+      const isNeeds = g.category === 'Needs' || g.category === 'Thiết yếu';
+      const isWants = g.category === 'Wants' || g.category === 'Linh hoạt';
+      return !isNeeds && !isWants; // Bất kỳ quỹ nào không phải Thiết yếu/Linh hoạt đều tính vào Tích luỹ
+    }).reduce((sum, g) => sum + g.currentAmount, 0);
     
     // Tổng ngân sách đầu tháng = Còn lại + Đã chi
     const budgetNeeds = remainingNeeds + totalNeeds;
@@ -222,7 +226,7 @@ export default function PnLDashboard() {
           />
         </div>
 
-        <div onClick={() => setShowTxDetails({ title: 'Dòng tiền Tích luỹ', goalCategories: ['Savings'] })} className="cursor-pointer">
+        <div onClick={() => setShowTxDetails({ title: 'Dòng tiền Tích luỹ', isSavingsGoal: true })} className="cursor-pointer">
           <BudgetCard 
             title="Tích lũy & Đầu tư" 
             budget={budgetSummary.budgetSavings} 
@@ -344,8 +348,12 @@ export default function PnLDashboard() {
           title={showTxDetails.title} 
           transactions={currentMonthTx.filter(t => {
             if (showTxDetails.type === 'Revenue') return t.type === 'Revenue' || revenueKeys.includes(t.category);
-            if (showTxDetails.goalCategories) {
-              const matchingGoals = goals.filter(g => g.category && showTxDetails.goalCategories?.includes(g.category)).map(g => g.id);
+            if (showTxDetails.isSavingsGoal) {
+              const matchingGoals = goals.filter(g => {
+                const isNeeds = g.category === 'Needs' || g.category === 'Thiết yếu';
+                const isWants = g.category === 'Wants' || g.category === 'Linh hoạt';
+                return !isNeeds && !isWants;
+              }).map(g => g.id);
               return matchingGoals.includes(t.Goal_To || '');
             }
             return showTxDetails.categoryKeys?.includes(t.category);
