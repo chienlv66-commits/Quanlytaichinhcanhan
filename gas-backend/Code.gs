@@ -311,7 +311,7 @@ function handleCreateGoal(goalData) {
     goalData.Goal_Name || '',
     goalData.Target_Amount || 0,
     goalData.Current_Amount || 0,
-    goalData.Goal_Type || 'Savings',
+    goalData.Goal_Type || goalData.Category || 'Savings',
     goalData.Allocated_Percentage || 0,
     goalData.Owner_User_ID || '',
     goalData.Privacy_Tag || 'FAMILY'

@@ -22,8 +22,16 @@ export default function PnLDashboard() {
     fetchGoals();
   }, [fetchPnL, fetchGoals]);
 
+  const currentMonthTx = useMemo(() => {
+    const now = new Date();
+    return familyTransactions.filter(tx => {
+      const txDate = new Date(tx.timestamp);
+      return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+    });
+  }, [familyTransactions]);
+
   const { pnl, pnlSummary, budgetSummary } = useMemo(() => {
-    const pnl = familyTransactions.reduce((acc, tx) => {
+    const pnl = currentMonthTx.reduce((acc, tx) => {
       const amt = Number(tx.amount);
       
       // Thu nhập (Revenue)
@@ -62,18 +70,24 @@ export default function PnLDashboard() {
     const totalNeeds = Math.abs(pnl.needs_groceries + pnl.needs_utilities + pnl.needs_edu + pnl.needs_other);
     const totalWants = Math.abs(pnl.wants_dining + pnl.wants_shopping + pnl.wants_entertainment + pnl.wants_other);
     
-    // Ngân sách từ Goals (chỉ tính Quỹ Chung)
+    // Ngân sách từ Goals (Quỹ Chung)
+    // currentAmount là số tiền CÒN LẠI trong quỹ
     const familyGoals = goals.filter(g => (g as any).Privacy_Tag !== 'PERSONAL');
-    const budgetNeeds = familyGoals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
-    const budgetWants = familyGoals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
+    const remainingNeeds = familyGoals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
+    const remainingWants = familyGoals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
     const budgetSavings = familyGoals.filter(g => g.category === 'Savings').reduce((sum, g) => sum + g.currentAmount, 0);
+    
+    // Tổng ngân sách đầu tháng = Còn lại + Đã chi
+    const budgetNeeds = remainingNeeds + totalNeeds;
+    const budgetWants = remainingWants + totalWants;
+
     const totalBudget = budgetNeeds + budgetWants + budgetSavings;
 
     const pnlSummary = { totalIncome, totalNeeds, totalWants };
-    const budgetSummary = { budgetNeeds, budgetWants, budgetSavings, totalBudget };
+    const budgetSummary = { budgetNeeds, budgetWants, budgetSavings, totalBudget, remainingNeeds, remainingWants };
     
     return { pnl, pnlSummary, budgetSummary };
-  }, [transactions, goals]);
+  }, [familyTransactions, goals]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -191,6 +205,7 @@ export default function PnLDashboard() {
             title="Thiết yếu (Needs)" 
             budget={budgetSummary.budgetNeeds} 
             spent={pnlSummary.totalNeeds}
+            remaining={budgetSummary.remainingNeeds}
             icon={<Activity className="h-4 w-4 text-blue-500" />}
             colorClass="bg-blue-500"
           />
@@ -201,6 +216,7 @@ export default function PnLDashboard() {
             title="Linh hoạt (Wants)" 
             budget={budgetSummary.budgetWants} 
             spent={pnlSummary.totalWants}
+            remaining={budgetSummary.remainingWants}
             icon={<Activity className="h-4 w-4 text-orange-500" />}
             colorClass="bg-orange-500"
           />
@@ -326,7 +342,7 @@ export default function PnLDashboard() {
       {showTxDetails && (
         <TransactionDetailsModal 
           title={showTxDetails.title} 
-          transactions={familyTransactions.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))}
+          transactions={currentMonthTx.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))} 
           onClose={() => setShowTxDetails(null)} 
         />
       )}
@@ -377,8 +393,8 @@ function MetricCard({ title, value, icon }: { title: string, value: string, icon
   );
 }
 
-function BudgetCard({ title, budget, spent, icon, colorClass, isSavings = false }: { title: string, budget: number, spent: number, icon: React.ReactNode, colorClass: string, isSavings?: boolean }) {
-  const remaining = budget - spent;
+function BudgetCard({ title, budget, spent, remaining, icon, colorClass, isSavings = false }: { title: string, budget: number, spent: number, remaining?: number, icon: React.ReactNode, colorClass: string, isSavings?: boolean }) {
+  const finalRemaining = remaining !== undefined ? remaining : budget - spent;
   const progress = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
   
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
@@ -399,7 +415,7 @@ function BudgetCard({ title, budget, spent, icon, colorClass, isSavings = false 
             </div>
             <div className="flex justify-between text-xs text-gray-500">
               <span>Đã chi: <strong>{formatCurrency(spent)}</strong></span>
-              <span>Còn lại: <strong className={remaining < 0 ? 'text-red-500' : ''}>{formatCurrency(remaining)}</strong></span>
+              <span>Còn lại: <strong className={finalRemaining < 0 ? 'text-red-500' : ''}>{formatCurrency(finalRemaining)}</strong></span>
             </div>
             <p className="text-xs text-blue-500 mt-2 font-medium cursor-pointer">Bấm để xem chi tiết chi tiêu →</p>
           </>
