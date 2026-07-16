@@ -137,9 +137,9 @@ export default function PnLDashboard() {
       const isExpense = tx.Transaction_Type === 'EXPENSE' || tx.type === 'Expense';
 
       if (isRevenue) {
-        dataMap[monthKey].Income += tx.Amount_VND;
+        dataMap[monthKey].Income += Math.abs(tx.Amount_VND);
       } else if (isExpense) {
-        dataMap[monthKey].Expense += tx.Amount_VND;
+        dataMap[monthKey].Expense += Math.abs(tx.Amount_VND);
       }
     });
 
