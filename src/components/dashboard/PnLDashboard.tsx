@@ -134,7 +134,8 @@ export default function PnLDashboard() {
       }
 
       const isRevenue = tx.Transaction_Type === 'INCOME' || tx.type === 'Revenue' || revenueKeys.includes(tx.category);
-      const isExpense = tx.Transaction_Type === 'EXPENSE' || tx.type === 'Expense';
+      const isInternalTransfer = tx.Transaction_Type === 'GOAL_ALLOCATION' || tx.Category_ID === 'Ngân sách' || (tx.description?.startsWith('Phân bổ') && !tx.description.toLowerCase().includes('cá nhân'));
+      const isExpense = (tx.Transaction_Type === 'EXPENSE' || tx.type === 'Expense') && !isInternalTransfer;
 
       if (isRevenue) {
         dataMap[monthKey].Income += Math.abs(tx.Amount_VND);
