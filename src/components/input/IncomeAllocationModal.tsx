@@ -38,16 +38,29 @@ export default function IncomeAllocationModal({
   useEffect(() => {
     if (goals.length > 0) {
       const newAllocations: { goalId: string, amount: number, percentage: number, reason: string, checked: boolean }[] = [];
+      const hasSavings = goals.some(g => !g.category || ['Savings', 'Tích lũy', 'Tích luỹ'].includes(g.category));
       
       if (isSalary) {
-        // Phân bổ 50/30/20
+        // 50/30/20 Rule cho Lương
         const needsAmount = Math.round(incomeAmount * 0.5);
         const wantsAmount = Math.round(incomeAmount * 0.3);
-        const savingsAmount = incomeAmount - needsAmount - wantsAmount; // 20%
+        const savingsAmount = incomeAmount - needsAmount - wantsAmount;
+        
+        const needsPct = 50;
+        const wantsPct = 30;
+        const savingsPct = 20;
 
-        const needsGoals = goals.filter(g => g.category === 'Needs');
-        const wantsGoals = goals.filter(g => g.category === 'Wants');
-        const savingsGoals = goals.filter(g => !g.category || g.category === 'Savings').sort((a, b) => (a.priority || 1) - (b.priority || 1));
+        const needsGoals = goals.filter(g => g.category === 'Needs' || g.category === 'Thiết yếu');
+        const wantsGoals = goals.filter(g => g.category === 'Wants' || g.category === 'Linh hoạt');
+        const savingsGoals = goals.filter(g => !g.category || ['Savings', 'Tích lũy', 'Tích luỹ'].includes(g.category)).sort((a, b) => (a.priority || 1) - (b.priority || 1));
+
+        if (autoAllocateSavings) {
+          if (savingsGoals.length > 0) {
+            newAllocations.push({ goalId: savingsGoals[0].id, amount: savingsAmount, percentage: savingsPct, reason: 'Quy tắc 50/30/20 (20% Tích luỹ)', checked: true });
+          } else {
+            // Không có quỹ tích luỹ
+          }
+        }
 
         // Phân bổ Needs (Chia đều nếu có nhiều quỹ Needs)
         if (needsGoals.length > 0) {
@@ -137,7 +150,7 @@ export default function IncomeAllocationModal({
     setAllocations(prev => prev.map(a => a.goalId === goalId ? { ...a, percentage: Number(newPct.toFixed(1)), amount: newAmount, checked: true, reason: 'Tự điều chỉnh' } : a));
     // Tự động vô hiệu hoá autoAllocateSavings nếu người dùng tự sửa tay 1 quỹ Tích lũy
     const goal = goals.find(g => g.id === goalId);
-    if (goal && (!goal.category || goal.category === 'Savings')) {
+    if (goal && (!goal.category || ['Savings', 'Tích lũy', 'Tích luỹ'].includes(goal.category))) {
       setAutoAllocateSavings(false);
     }
   };

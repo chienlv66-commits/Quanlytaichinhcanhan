@@ -13,7 +13,7 @@ export default function PnLDashboard() {
     return transactions.filter(tx => tx.Privacy_Tag !== 'PERSONAL');
   }, [transactions]);
 
-  const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys: string[]} | null>(null);
+  const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys?: string[], type?: string, goalCategories?: string[]} | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showReallocate, setShowReallocate] = useState(false);
 
@@ -73,9 +73,9 @@ export default function PnLDashboard() {
     // Ngân sách từ Goals (Quỹ Chung)
     // currentAmount là số tiền CÒN LẠI trong quỹ
     const familyGoals = goals.filter(g => (g as any).Privacy_Tag !== 'PERSONAL');
-    const remainingNeeds = familyGoals.filter(g => g.category === 'Needs').reduce((sum, g) => sum + g.currentAmount, 0);
-    const remainingWants = familyGoals.filter(g => g.category === 'Wants').reduce((sum, g) => sum + g.currentAmount, 0);
-    const budgetSavings = familyGoals.filter(g => g.category === 'Savings').reduce((sum, g) => sum + g.currentAmount, 0);
+    const remainingNeeds = familyGoals.filter(g => g.category === 'Needs' || g.category === 'Thiết yếu').reduce((sum, g) => sum + g.currentAmount, 0);
+    const remainingWants = familyGoals.filter(g => g.category === 'Wants' || g.category === 'Linh hoạt').reduce((sum, g) => sum + g.currentAmount, 0);
+    const budgetSavings = familyGoals.filter(g => g.category === 'Savings' || g.category === 'Tích lũy' || g.category === 'Tích luỹ').reduce((sum, g) => sum + g.currentAmount, 0);
     
     // Tổng ngân sách đầu tháng = Còn lại + Đã chi
     const budgetNeeds = remainingNeeds + totalNeeds;
@@ -111,8 +111,8 @@ export default function PnLDashboard() {
   };
 
   const revenueKeys = ['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì', 'Tổng doanh thu (Gross Revenue)'];
-  const needsKeys = ['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)'];
-  const wantsKeys = ['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)'];
+  const needsKeys = ['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)', 'Thiết yếu (Ăn uống, Thuê nhà)', 'Giáo dục', 'Sức khỏe'];
+  const wantsKeys = ['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân'];
 
   const handleMonthEndSweep = async () => {
     if (!window.confirm('Hành động này sẽ rút toàn bộ số tiền còn lại trong các quỹ Thiết Yếu và Linh Hoạt để chuyển sang quỹ Tích Lũy. Bạn có chắc chắn?')) return;
@@ -192,7 +192,7 @@ export default function PnLDashboard() {
       {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">Lỗi: {error}</div>}
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div onClick={() => setShowTxDetails({ title: 'Chi tiết Thu nhập', categoryKeys: revenueKeys })} className="cursor-pointer">
+        <div onClick={() => setShowTxDetails({ title: 'Chi tiết Thu nhập', type: 'Revenue' })} className="cursor-pointer">
           <MetricCard 
             title="Tổng Thu Nhập" 
             value={formatCurrency(pnlSummary.totalIncome)} 
@@ -222,7 +222,7 @@ export default function PnLDashboard() {
           />
         </div>
 
-        <div className="cursor-pointer">
+        <div onClick={() => setShowTxDetails({ title: 'Dòng tiền Tích luỹ', goalCategories: ['Savings'] })} className="cursor-pointer">
           <BudgetCard 
             title="Tích lũy & Đầu tư" 
             budget={budgetSummary.budgetSavings} 
@@ -342,7 +342,14 @@ export default function PnLDashboard() {
       {showTxDetails && (
         <TransactionDetailsModal 
           title={showTxDetails.title} 
-          transactions={currentMonthTx.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))} 
+          transactions={currentMonthTx.filter(t => {
+            if (showTxDetails.type === 'Revenue') return t.type === 'Revenue' || revenueKeys.includes(t.category);
+            if (showTxDetails.goalCategories) {
+              const matchingGoals = goals.filter(g => g.category && showTxDetails.goalCategories?.includes(g.category)).map(g => g.id);
+              return matchingGoals.includes(t.Goal_To || '');
+            }
+            return showTxDetails.categoryKeys?.includes(t.category);
+          })} 
           onClose={() => setShowTxDetails(null)} 
         />
       )}
