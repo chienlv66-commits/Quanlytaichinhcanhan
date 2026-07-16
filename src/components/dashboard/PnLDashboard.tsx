@@ -9,6 +9,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 export default function PnLDashboard() {
   const { transactions, fetchPnL, goals, fetchGoals, updateTransaction, deleteTransaction, saveGoals, error } = useFinanceStore();
 
+  const familyTransactions = useMemo(() => {
+    return transactions.filter(tx => tx.Privacy_Tag !== 'PERSONAL');
+  }, [transactions]);
+
   const [showTxDetails, setShowTxDetails] = useState<{title: string, categoryKeys: string[]} | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showReallocate, setShowReallocate] = useState(false);
@@ -19,7 +23,7 @@ export default function PnLDashboard() {
   }, [fetchPnL, fetchGoals]);
 
   const { pnl, pnlSummary, budgetSummary } = useMemo(() => {
-    const pnl = transactions.reduce((acc, tx) => {
+    const pnl = familyTransactions.reduce((acc, tx) => {
       const amt = Number(tx.amount);
       
       // Thu nhập (Revenue)
@@ -96,16 +100,79 @@ export default function PnLDashboard() {
   const needsKeys = ['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)'];
   const wantsKeys = ['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)'];
 
+  const handleMonthEndSweep = async () => {
+    if (!window.confirm('Hành động này sẽ rút toàn bộ số tiền còn lại trong các quỹ Thiết Yếu và Linh Hoạt để chuyển sang quỹ Tích Lũy. Bạn có chắc chắn?')) return;
+    
+    const familyGoals = goals.filter(g => (g as any).Privacy_Tag !== 'PERSONAL');
+    const savingsGoals = familyGoals.filter(g => g.category === 'Savings').sort((a, b) => (a.priority || 1) - (b.priority || 1));
+    const mainSavingsGoal = savingsGoals[0];
+    
+    if (!mainSavingsGoal) {
+      alert('Chưa có quỹ Tích Lũy (Savings) nào của gia đình để chuyển tiền dư vào!');
+      return;
+    }
+
+    const needsWantsGoals = familyGoals.filter(g => g.category === 'Needs' || g.category === 'Wants');
+    let totalSwept = 0;
+
+    for (const g of needsWantsGoals) {
+      if (g.currentAmount > 0) {
+        const sweepAmt = g.currentAmount;
+        totalSwept += sweepAmt;
+
+        // Tạo giao dịch chuyển tiền nội bộ
+        await useFinanceStore.getState().createTransaction({
+          Transaction_Date: new Date().toISOString(),
+          Transaction_Type: 'GOAL_ALLOCATION',
+          Amount_Original: sweepAmt,
+          Amount_VND: sweepAmt,
+          Currency: 'VND',
+          Exchange_Rate: 1,
+          Goal_From: g.id,
+          Goal_To: mainSavingsGoal.id,
+          Description: `Kết toán tháng: Chuyển tiền dư từ ${g.name} sang ${mainSavingsGoal.name}`,
+          Owner_User_ID: useFinanceStore.getState().currentUser?.User_ID || '',
+          Privacy_Tag: 'FAMILY',
+          Status: 'POSTED',
+          Category_ID: 'Ngân sách',
+          Account_From: '',
+          Account_To: ''
+        });
+
+        // Cập nhật số dư quỹ nguồn
+        await useFinanceStore.getState().updateGoal(g.id, { Current_Amount: 0 });
+      }
+    }
+
+    if (totalSwept > 0) {
+      // Cập nhật số dư quỹ đích
+      await useFinanceStore.getState().updateGoal(mainSavingsGoal.id, { Current_Amount: mainSavingsGoal.currentAmount + totalSwept });
+      await fetchGoals();
+      await useFinanceStore.getState().fetchTransactions();
+      alert(`Đã kết toán thành công: Chuyển ${formatCurrency(totalSwept)} tiền dư vào ${mainSavingsGoal.name}.`);
+    } else {
+      alert('Không có tiền dư trong các quỹ Thiết Yếu và Linh Hoạt để kết toán.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold tracking-tight">Báo cáo Dòng Tiền (50/30/20)</h2>
-        <button 
-          onClick={() => setShowReallocate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors"
-        >
-          <RefreshCw size={18} /> Điều chỉnh Ngân sách
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleMonthEndSweep}
+            className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium transition-colors"
+          >
+            <ArrowUpIcon size={18} /> Kết toán tháng
+          </button>
+          <button 
+            onClick={() => setShowReallocate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors"
+          >
+            <RefreshCw size={18} /> Điều chỉnh Ngân sách
+          </button>
+        </div>
       </div>
       
       {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">Lỗi: {error}</div>}
@@ -213,11 +280,11 @@ export default function PnLDashboard() {
       <Card className="shadow-sm">
         <CardHeader><CardTitle>Giao dịch gần đây</CardTitle></CardHeader>
         <CardContent>
-          {transactions.length === 0 ? (
+          {familyTransactions.length === 0 ? (
             <div className="text-gray-500 text-sm">Chưa có giao dịch nào được ghi nhận.</div>
           ) : (
             <div className="space-y-3">
-              {transactions.slice().reverse().slice(0, 15).map((tx) => (
+              {familyTransactions.slice().reverse().slice(0, 15).map((tx) => (
                 <div key={tx.id} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-all group">
                   <div>
                     <div className="font-semibold text-gray-800">{tx.description}</div>
@@ -259,7 +326,7 @@ export default function PnLDashboard() {
       {showTxDetails && (
         <TransactionDetailsModal 
           title={showTxDetails.title} 
-          transactions={transactions.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))}
+          transactions={familyTransactions.filter(t => showTxDetails.categoryKeys.includes(t.category) || (showTxDetails.title === 'Chi tiết Thu nhập' && t.type === 'Revenue'))}
           onClose={() => setShowTxDetails(null)} 
         />
       )}
