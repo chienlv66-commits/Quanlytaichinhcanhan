@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useFinanceStore, Transaction, Goal } from '@/stores/financeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ArrowDownIcon, ArrowUpIcon, Activity, Edit2, X, RefreshCw } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function PnLDashboard() {
   const { transactions, fetchPnL, goals, fetchGoals, updateTransaction, deleteTransaction, saveGoals, error } = useFinanceStore();
@@ -117,6 +117,34 @@ export default function PnLDashboard() {
   const revenueKeys = ['Lương & Thu nhập cố định', 'Thưởng & Thu nhập ngoài', 'Kinh doanh / Đầu tư', 'Được biếu tặng / Lì xì', 'Tổng doanh thu (Gross Revenue)'];
   const needsKeys = ['Thuê nhà & Tiện ích', 'Đi chợ & Siêu thị', 'Giáo dục & Học phí', 'Xăng xe & Di chuyển', 'Bảo hiểm & Y tế cơ bản', 'Trả góp / Nợ cố định', 'Khác (Thiết yếu)', 'Thiết yếu (Ăn uống, Thuê nhà)', 'Giáo dục', 'Sức khỏe'];
   const wantsKeys = ['Ăn ngoài & Cafe', 'Mua sắm cá nhân', 'Giải trí & Du lịch', 'Chăm sóc sắc đẹp / Thể thao', 'Hiếu hỷ & Biếu tặng', 'Khác (Linh hoạt)', 'Linh hoạt (Giải trí, Mua sắm)', 'Chi tiêu cá nhân'];
+
+  const monthlyChartData = useMemo(() => {
+    const dataMap: Record<string, { month: string, Income: number, Expense: number }> = {};
+    
+    familyTransactions.forEach(tx => {
+      if (!tx.Transaction_Date) return;
+      
+      const date = new Date(tx.Transaction_Date);
+      if (isNaN(date.getTime())) return;
+
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!dataMap[monthKey]) {
+        dataMap[monthKey] = { month: monthKey, Income: 0, Expense: 0 };
+      }
+
+      const isRevenue = tx.Transaction_Type === 'INCOME' || tx.type === 'Revenue' || revenueKeys.includes(tx.category);
+      const isExpense = tx.Transaction_Type === 'EXPENSE' || tx.type === 'Expense';
+
+      if (isRevenue) {
+        dataMap[monthKey].Income += tx.Amount_VND;
+      } else if (isExpense) {
+        dataMap[monthKey].Expense += tx.Amount_VND;
+      }
+    });
+
+    return Object.values(dataMap).sort((a, b) => a.month.localeCompare(b.month));
+  }, [familyTransactions]);
 
   const handleMonthEndSweep = async () => {
     if (!window.confirm('Hành động này sẽ rút toàn bộ số tiền còn lại trong các quỹ Thiết Yếu và Linh Hoạt để chuyển sang quỹ Tích Lũy. Bạn có chắc chắn?')) return;
@@ -296,6 +324,31 @@ export default function PnLDashboard() {
           </Card>
         </div>
       </div>
+
+      <Card className="shadow-sm">
+        <CardHeader><CardTitle>Chi tiêu dòng tiền theo tháng</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis 
+                  tickFormatter={(val) => `${val / 1000000}M`} 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  width={40}
+                />
+                <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                <Legend />
+                <Bar dataKey="Income" name="Thu nhập" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Expense" name="Chi tiêu" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm">
         <CardHeader><CardTitle>Giao dịch gần đây</CardTitle></CardHeader>
