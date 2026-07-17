@@ -148,11 +148,17 @@ export default function App() {
       </main>
 
       {/* Bottom Tabbar cho Mobile */}
-      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe z-50 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
-        <TabItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label="Lãi/Lỗ" />
-        <TabItem active={activeTab === 'goals'} onClick={() => setActiveTab('goals')} icon={<Home />} label="Mục tiêu" />
-        <TabItem active={activeTab === 'investments'} onClick={() => setActiveTab('investments')} icon={<TrendingUp />} label="Đầu tư" />
-        <TabItem active={false} onClick={() => setIsSettingsOpen(true)} icon={<Settings />} label="Cài đặt" />
+      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t flex overflow-x-auto p-2 pb-safe z-50 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style dangerouslySetInnerHTML={{__html: `nav::-webkit-scrollbar { display: none; }`}} />
+        <div className="flex gap-6 px-4 min-w-max">
+          <TabItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label="Lãi/Lỗ" />
+          <TabItem active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} icon={<Layers />} label="Tài khoản" />
+          <TabItem active={activeTab === 'personal'} onClick={() => setActiveTab('personal')} icon={<User />} label="Cá nhân" />
+          <TabItem active={activeTab === 'staging'} onClick={() => setActiveTab('staging')} icon={<Layers />} label="Hàng đợi" />
+          <TabItem active={activeTab === 'goals'} onClick={() => setActiveTab('goals')} icon={<Home />} label="Mục tiêu" />
+          <TabItem active={activeTab === 'investments'} onClick={() => setActiveTab('investments')} icon={<TrendingUp />} label="Đầu tư" />
+          <TabItem active={false} onClick={() => setIsSettingsOpen(true)} icon={<Settings />} label="Cài đặt" />
+        </div>
       </nav>
 
       {/* Floating Action Button (Mobile only) */}
